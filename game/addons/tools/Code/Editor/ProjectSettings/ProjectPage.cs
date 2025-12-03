@@ -27,13 +27,13 @@ internal sealed class ProjectPage : ProjectInspector.Category
 	/// </summary>
 	private bool HasChangedParentPackage { get; set; }
 
-	[Editor( "package:game" ), Title( "Supported Games" )]
+	[Editor( "package:games" ), Title( "Supported Games" )]
 	public string GameSupport
 	{
 		get => Properties.GameSupport;
 		set
 		{
-			Properties.GameSupport = value;
+			Properties.GameSupport = value == null ? "" : value;
 			Project.Config.Metadata["GameSupport"] = Properties.GameSupport
 				.Replace( "#local", "" )
 				.Split( ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries ).ToList();

@@ -252,6 +252,8 @@ public class PackageSelector : Dialog
 
 		AddonList.SetItems( result.Packages );
 
+		await Task.Delay(100);
+
 		if ( SelectedPackages != null && AddonList.SelectedItems.Count() != SelectedPackages.Length )
 		{
 			foreach ( var package in SelectedPackages )
