@@ -56,7 +56,7 @@ public class BaseControl : Panel
 		var type = property.PropertyType;
 
 		var allAttributes = Game.TypeLibrary.GetTypesWithAttribute<CustomEditorAttribute>( false )
-					.Where( x => x.Type.TargetType.IsAssignableTo( typeof( BaseControl ) ))
+					.Where( x => x.Type.TargetType.IsAssignableTo( typeof( BaseControl ) ) )
 					.ToArray();
 
 		var allEditors = allAttributes
