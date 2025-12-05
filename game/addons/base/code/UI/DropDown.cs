@@ -68,6 +68,7 @@ namespace Sandbox.UI
 		/// <summary>
 		/// The currently selected option.
 		/// </summary>
+		[Parameter]
 		public Option Selected
 		{
 			get => selected;

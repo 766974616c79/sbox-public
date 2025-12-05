@@ -36,6 +36,7 @@ public partial class TextEntry
 	/// <summary>
 	/// If true then Icon/IconPanel will be set to a clear button that clears the text when clicked.
 	/// </summary>
+	[Parameter]
 	public bool HasClearButton
 	{
 		get => _hasClearButton;

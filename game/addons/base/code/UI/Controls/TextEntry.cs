@@ -77,6 +77,7 @@ public partial class TextEntry : BaseControl
 	}
 
 	/// <inheritdoc cref="Label.CaretPosition"/>
+	[Parameter]
 	public int CaretPosition
 	{
 		get => Label.CaretPosition;
@@ -88,17 +89,19 @@ public partial class TextEntry : BaseControl
 	/// <summary>
 	/// Whether to allow automatic replacement of emoji codes with their actual unicode emoji characters. See <see cref="Emoji"/>.
 	/// </summary>
+	[Parameter]
 	public bool AllowEmojiReplace { get; set; } = false;
 
 	/// <summary>
 	/// Allow <a href="https://en.wikipedia.org/wiki/Input_method">IME input</a> when this is focused.
 	/// </summary>
+	[Parameter]
 	public override bool AcceptsImeInput => true;
 
 	/// <summary>
 	/// Affects formatting of the text when <see cref="Numeric"/> is enabled. Accepts any format that is supported by <see cref="float.ToString(string?)"/>. <a href="https://learn.microsoft.com/en-us/dotnet/standard/base-types/custom-numeric-format-strings">See examples here</a>.
 	/// </summary>
-	[Category( "Presentation" )]
+	[Parameter, Category( "Presentation" )]
 	public string NumberFormat { get; set; } = null;
 
 	/// <summary>
@@ -110,11 +113,13 @@ public partial class TextEntry : BaseControl
 	/// <summary>
 	/// If we're numeric, this is the lowest numeric value allowed
 	/// </summary>
+	[Parameter]
 	public float? MinValue { get; set; }
 
 	/// <summary>
 	/// If we're numeric, this is the highest numeric value allowed
 	/// </summary>
+	[Parameter]
 	public float? MaxValue { get; set; }
 
 	/// <summary>
@@ -131,6 +136,7 @@ public partial class TextEntry : BaseControl
 	/// <summary>
 	/// If set, will display given text before the text entry box.
 	/// </summary>
+	[Parameter]
 	public string Prefix
 	{
 		get => PrefixLabel?.Text;
@@ -158,6 +164,7 @@ public partial class TextEntry : BaseControl
 	/// <summary>
 	/// If set, will display given text after the text entry box.
 	/// </summary>
+	[Parameter]
 	public string Suffix
 	{
 		get => SuffixLabel?.Text;

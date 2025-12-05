@@ -23,13 +23,13 @@
 {
     public RenderFragment Label { get; set; }
 
-    public Action<bool> OnValueChanged { get; set; }
+    [Parameter] public Action<bool> OnValueChanged { get; set; }
 
     string StateClass => Value ? "active" : "inactive";
 
     bool _value;
 
-    public bool Value
+    [Parameter] public bool Value
     {
         get => Property?.As.Bool ?? _value;
 

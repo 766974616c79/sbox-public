@@ -8,12 +8,14 @@ public partial class TextEntry
 	/// Maximum amount of items <see cref="AddToHistory"/> will keep.
 	/// Oldest items will be discarded as new ones are added.
 	/// </summary>
+	[Parameter]
 	public int HistoryMaxItems { get; set; } = 30;
 
 	string _historyCookie;
 	/// <summary>
 	/// If set, the history of this text entry will be stored and restored using this key in the local <see cref="Cookie"/>.
 	/// </summary>
+	[Parameter]
 	public string HistoryCookie
 	{
 		get => _historyCookie;

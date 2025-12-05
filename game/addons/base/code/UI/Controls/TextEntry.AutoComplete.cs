@@ -8,6 +8,7 @@ public partial class TextEntry
 	/// If you hook a method up here we'll do autocomplete on it.
 	/// Return a list if strings for given string input.
 	/// </summary>
+	[Parameter]
 	public Func<string, object[]> AutoComplete { get; set; }
 
 	public struct AutocompleteEntry

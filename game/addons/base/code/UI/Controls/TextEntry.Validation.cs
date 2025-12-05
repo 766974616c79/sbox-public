@@ -5,36 +5,37 @@ public partial class TextEntry
 	/// <summary>
 	/// If set, visually signals when the input text is shorter than this value. Will also set <see cref="HasValidationErrors"/> accordingly.
 	/// </summary>
-	[Category( "Validation" )]
+	[Parameter, Category( "Validation" )]
 	public int? MinLength { get; set; }
 
 	/// <summary>
 	/// If set, visually signals when the input text is longer than this value. Will also set <see cref="HasValidationErrors"/> accordingly.
 	/// </summary>
-	[Category( "Validation" )]
+	[Parameter, Category( "Validation" )]
 	public int? MaxLength { get; set; }
 
 	/// <summary>
 	/// If set, will block the input of any character that doesn't match. Will also set <see cref="HasValidationErrors"/> accordingly.
 	/// </summary>
-	[Category( "Validation" )]
+	[Parameter, Category( "Validation" )]
 	public string CharacterRegex { get; set; }
 
 	/// <summary>
 	/// If set, <see cref="HasValidationErrors"/> will return true if doesn't match regex.
 	/// </summary>
-	[Category( "Validation" )]
+	[Parameter, Category( "Validation" )]
 	public string StringRegex { get; set; }
 
 	/// <summary>
 	/// When set to true, ensures only numeric values can be typed. Also applies <see cref="FixNumeric"/> on text.
 	/// </summary>
-	[Category( "Validation" )]
+	[Parameter, Category( "Validation" )]
 	public bool Numeric { get; set; } = false;
 
 	/// <summary>
 	/// If true then this control has validation errors and the input shouldn't be accepted.
 	/// </summary>
+	[Parameter]
 	public bool HasValidationErrors { get; set; }
 
 	/// <summary>
