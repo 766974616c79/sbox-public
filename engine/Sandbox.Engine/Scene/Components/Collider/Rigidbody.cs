@@ -297,6 +297,24 @@ sealed public partial class Rigidbody : Component, Component.ExecuteInEditor, IG
 	}
 
 	/// <summary>
+	/// Enable enhanced continuous collision detection (CCD) for this body.
+	/// When enabled, the body performs CCD against dynamic bodies
+	/// (but not against other bodies with enhanced CCD enabled).
+	/// This is useful for fast-moving objects like bullets or rockets
+	/// that need reliable collision detection.
+	/// </summary>
+	[Advanced, Property]
+	public bool EnhancedCcd
+	{
+		get;
+		set
+		{
+			if ( field == value ) return;
+			if ( _body.IsValid() ) _body.EnhancedCcd = value;
+		}
+	}
+
+	/// <summary>
 	/// Resets the inertia tensor and its rotation to the values automatically calculated from the attached colliders.  
 	/// This removes any custom overrides set via <see cref="InertiaTensor"/> or <see cref="InertiaTensorRotation"/>.
 	/// </summary>
@@ -390,6 +408,8 @@ sealed public partial class Rigidbody : Component, Component.ExecuteInEditor, IG
 		// Apply velocities that were set before the body was created
 		_body.Velocity = _lastVelocity;
 		_body.AngularVelocity = _lastAngularVelocity;
+
+		_body.EnhancedCcd = EnhancedCcd;
 
 		// Make sure we clear these so we don't reapply them again later
 		_lastVelocity = default;
