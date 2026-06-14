@@ -123,6 +123,7 @@ public partial class TerrainStorage : GameResource
 {
 	[JsonInclude, JsonPropertyName( "Maps" )] private TerrainMapBlob Maps { get; set; } = new();
 
+	[Hide]
 	[JsonIgnore]
 	public ushort[] HeightMap
 	{
@@ -130,6 +131,7 @@ public partial class TerrainStorage : GameResource
 		set => Maps.HeightMap = value;
 	}
 
+	[Hide]
 	[JsonIgnore]
 	public UInt32[] ControlMap
 	{
