@@ -21,6 +21,10 @@ public sealed partial class PolygonMesh : IJsonConvert
 	private int _materialId = 0;
 	private float _smoothingThreshold;
 
+	// Editor only face visibility, not serialized. Hidden faces are skipped
+	// when rebuilding the model so they don't render, trace or collide.
+	private readonly HashSet<int> _hiddenFaces = new();
+
 	private static readonly float CollinearTolerance = MathF.Cos( 1f.DegreeToRadian() );
 
 	[Expose]
@@ -386,6 +390,26 @@ public sealed partial class PolygonMesh : IJsonConvert
 	public Material GetFaceMaterial( FaceHandle hFace )
 	{
 		return GetMaterial( MaterialIndex[hFace] );
+	}
+
+	/// <summary>
+	/// Are any faces hidden?
+	/// </summary>
+	public bool HasHiddenFaces => _hiddenFaces.Count > 0;
+
+	/// <summary>
+	/// Is this face hidden?
+	/// </summary>
+	public bool IsFaceHidden( FaceHandle hFace ) => _hiddenFaces.Contains( hFace.Index );
+
+	/// <summary>
+	/// Hide or show a face. Hidden faces are editor only and not saved, they are
+	/// excluded from the rebuilt model so they don't render or trace.
+	/// </summary>
+	public void SetFaceHidden( FaceHandle hFace, bool hidden )
+	{
+		if ( hidden ? _hiddenFaces.Add( hFace.Index ) : _hiddenFaces.Remove( hFace.Index ) )
+			IsDirty = true;
 	}
 
 	/// <summary>
@@ -4319,6 +4343,9 @@ public sealed partial class PolygonMesh : IJsonConvert
 		var builder = Model.Builder;
 		var submeshes = new Dictionary<int, Submesh>();
 
+		// Prune hidden entries for faces that no longer exist
+		_hiddenFaces.RemoveWhere( x => !FaceHandleFromIndex( x ).IsValid );
+
 		// Pre-compute every face normal once; ComputeFaceNormal will read from this cache
 		// instead of recomputing (which is otherwise called O(V²) times per face during triangulation).
 		foreach ( var hFace in Topology.FaceHandles )
@@ -4329,6 +4356,9 @@ public sealed partial class PolygonMesh : IJsonConvert
 
 		foreach ( var hFace in Topology.FaceHandles )
 		{
+			if ( IsFaceHidden( hFace ) )
+				continue;
+
 			var materialId = MaterialIndex[hFace];
 			var material = GetMaterial( MaterialIndex[hFace] );
 			if ( !submeshes.TryGetValue( materialId, out var submesh ) )

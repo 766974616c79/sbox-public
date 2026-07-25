@@ -1196,6 +1196,9 @@ public abstract class SelectionTool<T>( MeshTool tool ) : SelectionTool( tool ) 
 			{
 				foreach ( var h in mesh.FaceHandles )
 				{
+					if ( mesh.IsFaceHidden( h ) )
+						continue;
+
 					mesh.GetVerticesConnectedToFace( h, out var vertices );
 					var face = (T)(object)new MeshFace( component, h );
 
