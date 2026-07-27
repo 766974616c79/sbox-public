@@ -4842,6 +4842,38 @@ public sealed partial class PolygonMesh : IJsonConvert
 		}
 	}
 
+	/// <summary>
+	/// Remove all invalid geometry from the mesh: degenerate faces, edges not attached
+	/// to any face and vertices not attached to any edge.
+	/// </summary>
+	public void RemoveBadGeometry()
+	{
+		RemoveBadFaces();
+
+		var wireEdges = Topology.HalfEdgeHandles
+			.Where( h => h.Index < h.OppositeEdge.Index && !h.Face.IsValid && !h.OppositeEdge.Face.IsValid )
+			.ToList();
+
+		foreach ( var hEdge in wireEdges )
+		{
+			Topology.RemoveEdge( hEdge, true );
+		}
+
+		var freeVertices = Topology.VertexHandles
+			.Where( v => !v.Edge.IsValid )
+			.ToList();
+
+		foreach ( var hVertex in freeVertices )
+		{
+			Topology.RemoveVertex( hVertex, true );
+		}
+
+		if ( wireEdges.Count > 0 || freeVertices.Count > 0 )
+		{
+			IsDirty = true;
+		}
+	}
+
 	private bool AddEdgesConnectingSpans( IReadOnlyList<EdgeSpan> pEdgeSpans, int nNumSpans, int nNumEdgesToAdd, List<EdgeSpan> pOutEdgeSpans, List<FaceHandle> pOutNewFaces )
 	{
 		// Must have at least two spans
