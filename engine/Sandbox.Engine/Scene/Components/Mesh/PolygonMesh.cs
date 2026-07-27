@@ -4617,9 +4617,10 @@ public sealed partial class PolygonMesh : IJsonConvert
 
 	public void FindCornerVerticesForFace( FaceHandle hFace, float minCornerAngle, out List<VertexHandle> outCornerVertices )
 	{
-		outCornerVertices = new List<VertexHandle>();
-
 		var threshold = MathF.Cos( minCornerAngle.Clamp( 0.0f, 180.0f ).DegreeToRadian() );
+
+		// Measure how sharply the boundary turns at each vertex, in winding order
+		var candidates = new List<(VertexHandle Vertex, float Dot)>();
 
 		var hStartFaceVertex = GetFirstVertexInFace( hFace );
 		var hCurrentFaceVertex = hStartFaceVertex;
@@ -4639,17 +4640,24 @@ public sealed partial class PolygonMesh : IJsonConvert
 			var dirIn = (posCurr - posPrev).Normal;
 			var dirOut = (posNext - posCurr).Normal;
 
-			var dot = dirIn.Dot( dirOut );
-			if ( dot <= threshold )
-			{
-				outCornerVertices.Add( hVertexCurr );
-			}
+			candidates.Add( (hVertexCurr, dirIn.Dot( dirOut )) );
 
 			hPreviousFaceVertex = hCurrentFaceVertex;
 			hCurrentFaceVertex = hNextFaceVertex;
 			hNextFaceVertex = GetNextVertexInFace( hCurrentFaceVertex );
 		}
 		while ( hCurrentFaceVertex != hStartFaceVertex );
+
+		outCornerVertices = candidates.Where( x => x.Dot <= threshold ).Select( x => x.Vertex ).ToList();
+
+		// If too few corners pass the threshold (e.g. a quad with one corner flatter than
+		// the minimum angle), fall back to the four sharpest turns so the face can still
+		// be treated as a quad.
+		if ( outCornerVertices.Count < 4 && candidates.Count >= 4 )
+		{
+			var sharpest = candidates.OrderBy( x => x.Dot ).Take( 4 ).Select( x => x.Vertex ).ToHashSet();
+			outCornerVertices = candidates.Where( x => sharpest.Contains( x.Vertex ) ).Select( x => x.Vertex ).ToList();
+		}
 	}
 
 	public void QuadSliceFaces( IReadOnlyList<FaceHandle> faces, int cutsX, int cutsY, float minCornerAngleDegrees, List<FaceHandle> outNewFaceList )
