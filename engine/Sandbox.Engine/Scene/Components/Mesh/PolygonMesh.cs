@@ -377,6 +377,32 @@ public sealed partial class PolygonMesh : IJsonConvert
 	}
 
 	/// <summary>
+	/// Assign a material to a list of faces, and update their texture coordinates to match.
+	/// </summary>
+	public void AssignMaterialToFaces( IEnumerable<FaceHandle> faces, Material material )
+	{
+		var id = AddMaterial( material );
+		List<FaceHandle> changedFaces = null;
+
+		foreach ( var hFace in faces )
+		{
+			if ( !hFace.IsValid || MaterialIndex[hFace] == id )
+				continue;
+
+			MaterialIndex[hFace] = id;
+			changedFaces ??= [];
+			changedFaces.Add( hFace );
+		}
+
+		if ( changedFaces is null )
+			return;
+
+		ComputeFaceTextureCoordinatesFromParameters( changedFaces );
+
+		IsDirty = true;
+	}
+
+	/// <summary>
 	/// Assign a material to a face
 	/// </summary>
 	public void SetFaceMaterial( FaceHandle hFace, string material )
@@ -4048,21 +4074,6 @@ public sealed partial class PolygonMesh : IJsonConvert
 			texcoords[i] = TextureCoord[hEdges[i]];
 		}
 		return texcoords;
-	}
-
-	/// <summary>
-	/// Set face texture properties
-	/// </summary>
-	public void SetFaceTextureParameters( FaceHandle hFace, Vector2 offset, Vector3 uAxis, Vector3 vAxis )
-	{
-		TextureOffset[hFace] = offset;
-		TextureScale[hFace] = 0.25f;
-		TextureUAxis[hFace] = uAxis;
-		TextureVAxis[hFace] = vAxis;
-
-		ComputeFaceTextureCoordinatesFromParameters( new[] { hFace } );
-
-		IsDirty = true;
 	}
 
 	public void GetFaceTextureParameters( FaceHandle hFace, out Vector4 outAxisU, out Vector4 outAxisV, out Vector2 outScale )
