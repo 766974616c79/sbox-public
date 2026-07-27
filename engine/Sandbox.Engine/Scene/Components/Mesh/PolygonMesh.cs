@@ -12,6 +12,7 @@ public sealed partial class PolygonMesh : IJsonConvert
 	private HalfEdgeMesh.Mesh Topology { get; init; } = new();
 
 	private readonly List<FaceHandle> _triangleFaces = new();
+	private readonly List<FaceHandle> _badFaces = new();
 	private readonly List<int> _meshIndices = new();
 	private readonly List<Vector3> _meshVertices = new();
 	private readonly List<byte> _meshTriangleMaterials = new();
@@ -286,6 +287,11 @@ public sealed partial class PolygonMesh : IJsonConvert
 	/// All of the half edge handles being used
 	/// </summary>
 	public IEnumerable<HalfEdgeHandle> HalfEdgeHandles => Topology.HalfEdgeHandles;
+
+	/// <summary>
+	/// Faces that failed to triangulate during the last rebuild
+	/// </summary>
+	public IReadOnlyList<FaceHandle> BadFaces => _badFaces;
 
 	/// <summary>
 	/// Add a vertex to the topology
@@ -4336,6 +4342,7 @@ public sealed partial class PolygonMesh : IJsonConvert
 		var halfEdgeCount = Topology.HalfEdgeCount;
 
 		_triangleFaces.Clear();
+		_badFaces.Clear();
 		_meshIndices.Clear();
 		_meshVertices.Clear();
 		_meshFaces.Clear();
@@ -5742,6 +5749,11 @@ public sealed partial class PolygonMesh : IJsonConvert
 			.ToArray();
 
 		var faceIndices = Mesh.TriangulatePolygon( vertexPositions );
+
+		// Triangulation produced fewer indices than expected, remember the face so it can be highlighted in the editor
+		if ( faceIndices.Length != (vertexPositions.Length - 2) * 3 )
+			_badFaces.Add( hFace );
+
 		if ( faceIndices.Length < 3 )
 			return;
 
