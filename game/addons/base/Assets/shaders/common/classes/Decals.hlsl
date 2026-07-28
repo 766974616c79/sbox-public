@@ -117,7 +117,7 @@ void ParallaxOcclusion_Grad(
 	inoutUV += finalTextureCoords - uv;
 }
 
-class Decals
+struct Decals
 {
 	static bool Resolve(
 		Decal decal,
