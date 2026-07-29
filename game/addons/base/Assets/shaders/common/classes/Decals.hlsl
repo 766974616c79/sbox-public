@@ -212,10 +212,14 @@ struct Decals
 						float flCoverageAmount = 1.0f - (( heightCoverageSettings & 0xFF ) / 255.0);
 						float flCoverageRange = ( ( heightCoverageSettings >> 8 ) & 0xFF ) / 255.0;
 						
-						// Compute the height coverage mask 
+						// Compute the height coverage mask
+
 						float flHeightmap = tHeightmap.SampleGrad( textureSampler, decalUV.xy, gradUV.xy, gradUV.zw ).r;
-						float flCoverageRangeClamped = min( flCoverageRange, min( flCoverageAmount, 1.0 - flCoverageAmount ) );
-						flHeightCoverageMask = smoothstep( flCoverageAmount - flCoverageRangeClamped, flCoverageAmount + 0.001, flHeightmap );
+						if ( flCoverageAmount > 0.0f )
+						{
+							float flCoverageRangeClamped = min( flCoverageRange, min( flCoverageAmount, 1.0f - flCoverageAmount ) );
+							flHeightCoverageMask = smoothstep( flCoverageAmount - flCoverageRangeClamped, flCoverageAmount + 0.001, flHeightmap );
+						}
 					}
 
 					if ( sequence != 0xFFFFFF )
