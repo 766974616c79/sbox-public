@@ -71,9 +71,13 @@ internal partial class ShadowMapper
 
 	ISceneView SceneView { get; set; }
 
+	/// <summary>Directional light for this view.</summary>
+	SceneLight DirectionalLight { get; set; }
+
 	internal void InitForView( ISceneView sceneView )
 	{
 		SceneView = sceneView;
+		DirectionalLight = null;
 
 		// Evict stale shadow maps and clean the texture pool
 		Update();
@@ -83,6 +87,7 @@ internal partial class ShadowMapper
 		GPUProjectedCubeShadows.Clear();
 		GPUDirectionalLightData.CascadeCount = 0;
 		GPUDirectionalLightData.Enabled = false;
+		GPUDirectionalLightData.ShadowMaskTextureIndex = 0;
 		ShadowsAllocated = 0;
 
 		// Save statistics from last frame, then reset
@@ -305,6 +310,7 @@ internal partial class ShadowMapper
 
 	internal int DoDirectionalLight( SceneLight sceneObject, ISceneView view )
 	{
+		DirectionalLight = sceneObject;
 		GPUDirectionalLightData.Enabled = true;
 
 		if ( !CSMEnabled )

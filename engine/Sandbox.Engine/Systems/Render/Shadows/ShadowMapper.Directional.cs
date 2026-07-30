@@ -377,8 +377,15 @@ internal partial class ShadowMapper
 		gpuShadowData.CascadeCount = (uint)numCascades;
 		gpuShadowData.InverseShadowMapSize = 1.0f / shadowmapSize;
 
-		// Masks are generated per camera - pick the one published for the camera this view renders.
-		gpuShadowData.ShadowMaskTextureIndex = light.ShadowMaskTextureIndices.GetValueOrDefault( view.m_ManagedCameraId );
+		// Ensure we have our screenspace texture index before we actually render them if we use it, so it's already ready when we composite.
+		gpuShadowData.ShadowMaskTextureIndex = 0;
+		if ( ContactShadowsEnabled && light.ContactShadows )
+		{
+			var mask = light.GetShadowMask( view );
+			if ( mask is not null )
+				gpuShadowData.ShadowMaskTextureIndex = (uint)mask.Index;
+		}
+
 		GPUDirectionalLightData = gpuShadowData;
 	}
 
