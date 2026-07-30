@@ -185,7 +185,7 @@ public class SceneLight : SceneObject
 	/// </summary>
 	internal Vector3 WorldDirection => lightNative.GetWorldDirection();
 
-	public float ShadowBias { get; set; } = 0.0005f;
+	public float ShadowBias { get; set; } = 0.0f;
 
 	public float ShadowHardness { get; set; } = 0.0f;
 
