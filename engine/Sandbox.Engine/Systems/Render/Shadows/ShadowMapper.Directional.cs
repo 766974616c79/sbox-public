@@ -323,7 +323,7 @@ internal partial class ShadowMapper
 			frustum.InitOrthoCamera( cascade.Origin, cascade.Angles, cascade.Near, cascade.Far, cascade.Width, cascade.Height );
 
 			// Render shadow view
-			CSceneSystem.AddShadowView( CascadeNames[i], view, frustum, new( 0, 0, shadowmapSize, shadowmapSize ), rt.DepthTarget.native, 0, SceneObjectFlags.None, excludeFlags, ShadowDepthBias, ShadowSlopeScale, i > 0 ? exclusionFrustum : default );
+			CSceneSystem.AddShadowView( CascadeNames[i], view, frustum, new( 0, 0, shadowmapSize, shadowmapSize ), rt.DepthTarget.native, 0, SceneObjectFlags.None, excludeFlags, ShadowDepthBias, ShadowSlopeScale, i > 0 ? exclusionFrustum : default, default );
 
 			// Cache an exclusion frustum sized to the largest square inscribed in the cascade's bounding sphere.
 			var size = cascade.SphereRadius / MathF.Sqrt( 2.0f );
