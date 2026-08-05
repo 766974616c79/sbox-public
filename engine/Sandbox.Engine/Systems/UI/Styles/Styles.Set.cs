@@ -1474,6 +1474,12 @@ namespace Sandbox.UI
 
 				var subValue = p.ReadWord( null, true );
 
+				if ( subValue == "none" )
+				{
+					TextDecorationLine = UI.TextDecoration.None;
+					continue;
+				}
+
 				var textDecoration = GetTextDecorationFromValue( subValue );
 				if ( textDecoration != UI.TextDecoration.None )
 				{
@@ -1693,14 +1699,17 @@ namespace Sandbox.UI
 				int stack = 1;
 				var wordStart = p;
 
-				while ( !p.IsEnd && stack > 0 )
+				// Test before stepping, so an empty "url()" closes on the very first
+				// character instead of running off the end.
+				while ( !p.IsEnd )
 				{
-					p.Pointer++;
 					if ( p.Current == '(' ) stack++;
-					if ( p.Current == ')' ) stack--;
+					else if ( p.Current == ')' && --stack == 0 ) break;
+
+					p.Pointer++;
 				}
 
-				if ( p.IsEnd ) throw new System.Exception( "Expected ) after " + tokenName );
+				if ( stack > 0 ) throw new System.Exception( "Expected ) after " + tokenName );
 
 				result = wordStart.Read( p.Pointer - wordStart.Pointer );
 				return true;
@@ -1945,10 +1954,14 @@ namespace Sandbox.UI
 			{
 				url = url.Trim( ' ', '"', '\'' );
 				setGradient?.Invoke( default );
-				setImage( new Lazy<Texture>( () =>
+
+				// An empty url() is a binding whose source hasn't loaded yet - no image,
+				// same as "none", rather than a lookup for a blank path.
+				setImage( string.IsNullOrWhiteSpace( url ) ? NoImage : new Lazy<Texture>( () =>
 				{
 					return Texture.Load( url ) ?? Texture.Invalid;
 				} ) );
+
 				return true;
 			}
 

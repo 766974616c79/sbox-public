@@ -1105,6 +1105,9 @@ public partial struct Color : IEquatable<Color>
 				float l = 0.0f;
 				float a = 1.0f;
 
+				p = p.SkipWhitespaceAndNewlines();
+				if ( p.IsEnd ) return null;
+
 				if ( p.IsDigit )
 				{
 					if ( !p.TryReadFloat( out h ) ) return null;
@@ -1124,8 +1127,8 @@ public partial struct Color : IEquatable<Color>
 					s /= 100.0f;
 					l /= 100.0f;
 
-					// Functional syntax
-					p = p.SkipWhitespaceAndNewlines( "/" );
+					// Either separator, comma syntax or functional
+					p = p.SkipWhitespaceAndNewlines( ",/" );
 
 					// Alpha is optional even in HSLA
 					// Alpha can ALSO be used with HSL, so lets attempt to fetch alpha data
@@ -1146,6 +1149,8 @@ public partial struct Color : IEquatable<Color>
 				{
 					return null;
 				}
+
+				p = p.SkipWhitespaceAndNewlines();
 
 				if ( p.Current != ')' )
 				{

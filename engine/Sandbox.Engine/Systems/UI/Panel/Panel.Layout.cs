@@ -498,18 +498,34 @@ public partial class Panel
 			var rect = Box.Rect;
 			rect.Position -= ScrollOffset;
 
+			// The scrollable area is our box grown to fit the children. The padding after the
+			// last child scrolls with the content, so it's added to the children's extent - not
+			// to the box, which already includes it. Adding it to the box made every padded scroll
+			// panel scrollable by its padding even when nothing overflowed.
+			Rect content = default;
+			bool hasContent = false;
+
 			for ( int i = 0; i < _children.Count; i++ )
 			{
 				var child = _children[i];
 
-				if ( child.IsVisible )
-				{
-					rect.Add( child.GetLayoutRect() );
-				}
+				if ( !child.IsVisible )
+					continue;
+
+				var childRect = child.GetLayoutRect();
+
+				if ( hasContent ) content.Add( childRect );
+				else content = childRect;
+
+				hasContent = true;
 			}
 
-			rect.Height += Box.Padding.Bottom;
-			rect.Right += Box.Padding.Right;
+			if ( hasContent )
+			{
+				content.Right += Box.Padding.Right;
+				content.Bottom += Box.Padding.Bottom;
+				rect.Add( content );
+			}
 
 			ConstrainScrolling( rect.Size );
 		}
