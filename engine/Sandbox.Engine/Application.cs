@@ -62,6 +62,12 @@ public static class Application
 	internal static int LocalInstanceId { get; private set; }
 
 	/// <summary>
+	/// Number of engine frames since startup. Increments once at the start of every frame.
+	/// Starts at 1, so a default frame stamp of 0 always reads as a frame that has passed.
+	/// </summary>
+	public static ulong FrameCount { get; internal set; } = 1;
+
+	/// <summary>
 	/// The engine's version string
 	/// </summary>
 	public static string Version { get; internal set; }

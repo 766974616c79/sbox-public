@@ -55,7 +55,41 @@ public partial class Panel
 	/// If this panel or its parents have transforms, they'll be compounded here.
 	/// </summary>
 	[Hide]
-	public Matrix? GlobalMatrix { get; internal set; }
+	public Matrix? GlobalMatrix
+	{
+		get;
+		internal set
+		{
+			field = value;
+			_globalMatrixInverted = null;
+		}
+	}
+
+	Matrix? _globalMatrixInverted;
+
+	/// <summary>
+	/// Cached inverse of <see cref="GlobalMatrix"/>. Null when GlobalMatrix is null.
+	/// </summary>
+	internal Matrix? GlobalMatrixInverted
+	{
+		get
+		{
+			if ( GlobalMatrix is not { } m )
+				return null;
+
+			_globalMatrixInverted ??= m.Inverted;
+			return _globalMatrixInverted;
+		}
+	}
+
+	/// <summary>
+	/// Set <see cref="GlobalMatrix"/> along with an already known inverse, so it doesn't need computing again.
+	/// </summary>
+	internal void SetGlobalMatrix( Matrix? matrix, Matrix? inverted )
+	{
+		GlobalMatrix = matrix;
+		_globalMatrixInverted = inverted;
+	}
 
 	/// <summary>
 	/// The matrix that is applied as a result of transform: styles
@@ -134,6 +168,19 @@ public partial class Panel
 		needsFinalLayout = true;
 
 		Parent?.SetNeedsPreLayout();
+	}
+
+	/// <summary>
+	/// Request the final layout pass without a style rebuild. Enough for anything that
+	/// only moves content - like scrolling - where styles and yoga layout are unaffected.
+	/// </summary>
+	internal void SetNeedsFinalLayout()
+	{
+		if ( needsFinalLayout ) return;
+
+		needsFinalLayout = true;
+
+		Parent?.SetNeedsFinalLayout();
 	}
 
 	internal virtual void PreLayout( LayoutCascade cascade )
@@ -318,13 +365,13 @@ public partial class Panel
 		if ( YogaNode is null )
 			return;
 
-		PushLengthValues();
-
 		var hash = HashCode.Combine( offset, ScrollOffset, ScrollVelocity, ComputedStyle?.Transform, Opacity, ComputedStyle.Display );
-		if ( layoutHash == hash && !YogaNode.HasNewLayout && !needsFinalLayout ) return;
+		if ( layoutHash == hash && !needsFinalLayout && !YogaNode.HasNewLayout ) return;
 
 		needsFinalLayout = false;
 		layoutHash = hash;
+
+		PushLengthValues();
 
 		//if ( YogaNode.HasNewLayout || parentPos != offset )
 		{

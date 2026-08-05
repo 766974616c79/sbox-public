@@ -53,6 +53,7 @@ public partial class Panel
 		// Store state for gather phase
 		CachedLayerMatrix = mat;
 		_lastLayerMatrix = GlobalMatrix;
+		_lastLayerMatrixInverted = GlobalMatrixInverted;
 		GlobalMatrix = null;
 	}
 
@@ -82,8 +83,9 @@ public partial class Panel
 		// Restore layer transform
 		if ( _lastLayerMatrix.HasValue )
 		{
-			GlobalMatrix = _lastLayerMatrix;
+			SetGlobalMatrix( _lastLayerMatrix, _lastLayerMatrixInverted );
 			_lastLayerMatrix = null;
+			_lastLayerMatrixInverted = null;
 		}
 
 		if ( _panelLayerSize is null ) return;

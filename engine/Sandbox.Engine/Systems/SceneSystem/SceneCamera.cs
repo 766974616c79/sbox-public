@@ -69,26 +69,19 @@ public sealed partial class SceneCamera : IDisposable, IManagedCamera
 	internal Action<Rendering.Stage, SceneCamera> OnRenderStageHook;
 
 	/// <summary>
-	/// Called when rendering the post process pass
-	/// </summary>
-	[Obsolete]
-	public Action OnRenderPostProcess { get; set; }
-
-	/// <summary>
-	/// Called when rendering the transparent pass
-	/// </summary>
-	[Obsolete]
-	public Action OnRenderOpaque { get; set; }
-
-	/// <summary>
 	/// Called when rendering the transparent pass
 	/// </summary>
 	[Obsolete]
 	public Action OnRenderTransparent { get; set; }
 
-	public Action OnRenderOverlay { get; set; }
+	internal Action OnRenderOverlay { get; set; }
 
-	public Action OnRenderUI { get; set; }
+	internal Action OnRenderUI { get; set; }
+
+	/// <summary>
+	/// Called before post processing, for UI that wants bloom and color grading applied to it.
+	/// </summary>
+	internal Action OnRenderUIBeforePostProcess { get; set; }
 
 	/// <summary>
 	/// The size of the screen. Allows us to work out aspect ratio.
@@ -551,6 +544,13 @@ public sealed partial class SceneCamera : IDisposable, IManagedCamera
 					// Light shadow-mask command lists (screen-space contact shadows) only need the
 					// full-res depth buffer, and this stage already runs per view with a valid.
 					ShadowMapperCallbacks.RenderScreenSpaceShadows();
+					break;
+				}
+
+			case Rendering.Stage.BeforePostProcess:
+				{
+					if ( RenderUI )
+						OnRenderUIBeforePostProcess?.Invoke();
 					break;
 				}
 

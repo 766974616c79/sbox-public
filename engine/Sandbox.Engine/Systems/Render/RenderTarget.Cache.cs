@@ -100,7 +100,22 @@ public sealed partial class RenderTarget
 			ss = 8;
 		}
 
-		return GetTemporary( (int)(ss.x / sizeFactor), (int)(ss.y / sizeFactor), colorFormat, depthFormat, msaa, numMips, targetName );
+		var (width, height) = ScaleDownSize( ss, sizeFactor );
+
+		return GetTemporary( width, height, colorFormat, depthFormat, msaa, numMips, targetName );
+	}
+
+	/// <summary>
+	/// A viewport divided by a downsample factor, never smaller than a pixel. A big factor
+	/// against a short viewport - the tail of a bloom chain, say - would otherwise round an
+	/// axis down to zero, which isn't a render target you can make.
+	/// </summary>
+	internal static (int Width, int Height) ScaleDownSize( Vector2 viewport, int sizeFactor )
+	{
+		var width = Math.Max( (int)(viewport.x / sizeFactor), 1 );
+		var height = Math.Max( (int)(viewport.y / sizeFactor), 1 );
+
+		return (width, height);
 	}
 
 	internal void Return( RenderTarget source )
