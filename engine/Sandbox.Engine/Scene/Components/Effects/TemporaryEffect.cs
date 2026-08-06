@@ -1,5 +1,4 @@
-
-using Sandbox;
+namespace Sandbox;
 
 /// <summary>
 /// Destroys a GameObject after a number of seconds. If the GameObject or its children have any 
