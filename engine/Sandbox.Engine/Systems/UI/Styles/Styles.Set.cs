@@ -228,7 +228,7 @@ namespace Sandbox.UI
 					return SetBackground( value );
 
 				case "background-image":
-					return SetImage( value, SetBackgroundImageFromTexture, SetBackgroundSize, SetBackgroundRepeat, SetBackgroundAngle );
+					return SetImage( value, SetBackgroundImageFromTexture, SetBackgroundSize, SetBackgroundRepeat, SetBackgroundAngle, SetBackgroundGradient );
 
 				case "background-size":
 					return SetBackgroundSize( value );
@@ -1728,6 +1728,7 @@ namespace Sandbox.UI
 			// by a less specific rule, instead of leaving them showing through.
 			_backgroundImage = NoImage;
 			BackgroundColor = Color.Transparent;
+			BackgroundGradient = default;
 
 			var p = new Parse( value );
 
@@ -1797,7 +1798,7 @@ namespace Sandbox.UI
 				if ( bgColor.HasValue )
 					BackgroundColor = bgColor.Value;
 				else
-					SetImage( bgSource, SetBackgroundImageFromTexture, SetBackgroundSize, SetBackgroundRepeat, SetBackgroundAngle );
+					SetImage( bgSource, SetBackgroundImageFromTexture, SetBackgroundSize, SetBackgroundRepeat, SetBackgroundAngle, SetBackgroundGradient );
 			}
 
 			//
@@ -1925,7 +1926,8 @@ namespace Sandbox.UI
 		/// <param name="setSize">Optional</param>
 		/// <param name="setRepeat">Optional</param>
 		/// <param name="setAngle">Optional</param>
-		bool SetImage( string value, Func<Lazy<Texture>, bool> setImage = null, Func<string, bool> setSize = null, Func<string, bool> setRepeat = null, Func<float, bool> setAngle = null )
+		/// <param name="setGradient">Optional - surfaces that can evaluate gradients in the shader. Called with default to clear.</param>
+		bool SetImage( string value, Func<Lazy<Texture>, bool> setImage = null, Func<string, bool> setSize = null, Func<string, bool> setRepeat = null, Func<float, bool> setAngle = null, Func<GradientInfo, bool> setGradient = null )
 		{
 			var p = new Parse( value );
 			p = p.SkipWhitespaceAndNewlines();
@@ -1934,6 +1936,7 @@ namespace Sandbox.UI
 
 			if ( p.Is( "none", 0, true ) )
 			{
+				setGradient?.Invoke( default );
 				setImage( NoImage );
 				return true;
 			}
@@ -1941,6 +1944,7 @@ namespace Sandbox.UI
 			if ( GetTokenValueUnderParenthesis( p, "url", out string url ) )
 			{
 				url = url.Trim( ' ', '"', '\'' );
+				setGradient?.Invoke( default );
 				setImage( new Lazy<Texture>( () =>
 				{
 					return Texture.Load( url ) ?? Texture.Invalid;
@@ -1948,8 +1952,18 @@ namespace Sandbox.UI
 				return true;
 			}
 
+			// Gradients evaluate in the pixel shader wherever the surface supports it. The
+			// baked textures below are only for the surfaces that don't - masks and
+			// border-image - and go away once those move to the shader too.
 			if ( GetTokenValueUnderParenthesis( p, "linear-gradient", out string gradient ) )
 			{
+				if ( setGradient != null )
+				{
+					setImage?.Invoke( NoImage );
+					setGradient( TryParseLinearGradientInfo( gradient, out var gradientInfo ) ? gradientInfo : default );
+					return true;
+				}
+
 #pragma warning disable CA2000 // Dispose objects before losing scope
 				// Ownership of gradientTexture is transferred to the Lazy<Texture> returned via setImage
 				var gradientTexture = GenerateLinearGradientTexture( gradient, out var angle );
@@ -1963,6 +1977,13 @@ namespace Sandbox.UI
 
 			if ( GetTokenValueUnderParenthesis( p, "radial-gradient", out string radialGradient ) )
 			{
+				if ( setGradient != null )
+				{
+					setImage?.Invoke( NoImage );
+					setGradient( TryParseRadialGradientInfo( radialGradient, out var radialInfo ) ? radialInfo : default );
+					return true;
+				}
+
 #pragma warning disable CA2000 // Dispose objects before losing scope
 				// Ownership of gradientTexture is transferred to the Lazy<Texture> returned via setImage
 				var gradientTexture = GenerateRadialGradientTexture( radialGradient );
@@ -1975,6 +1996,13 @@ namespace Sandbox.UI
 
 			if ( GetTokenValueUnderParenthesis( p, "conic-gradient", out string conicGradient ) )
 			{
+				if ( setGradient != null )
+				{
+					setImage?.Invoke( NoImage );
+					setGradient( TryParseConicGradientInfo( conicGradient, out var conicInfo ) ? conicInfo : default );
+					return true;
+				}
+
 #pragma warning disable CA2000 // Dispose objects before losing scope
 				// Ownership of gradientTexture is transferred to the Lazy<Texture> returned via setImage
 				var gradientTexture = GenerateConicGradientTexture( conicGradient );
@@ -2223,6 +2251,12 @@ namespace Sandbox.UI
 			}
 		}
 
+		bool SetBackgroundGradient( GradientInfo gradient )
+		{
+			BackgroundGradient = gradient;
+			return true;
+		}
+
 		bool SetBackgroundImageFromTexture( Lazy<Texture> texture )
 		{
 			if ( texture == null )
@@ -2252,6 +2286,13 @@ namespace Sandbox.UI
 			return true;
 		}
 
+		/// <summary>
+		/// A gradient angle, converted from CSS to the convention both gradient paths use.
+		/// CSS measures clockwise from "to top", we measure clockwise from "to bottom", so
+		/// the two are mirrored: 0deg (up) becomes 180, 180deg (down) becomes 0, and 90deg
+		/// (right) stays put. Result is radians, wrapped to [0, 2pi) - the background-angle
+		/// style the baked path writes through rejects negatives.
+		/// </summary>
 		bool TryParseAngle( string value, out float outAngle )
 		{
 			outAngle = 0.0f;
@@ -2260,11 +2301,9 @@ namespace Sandbox.UI
 
 			if ( !angle.HasValue ) return false;
 
-			var angleDeg = angle.Value;
+			var degrees = (180f - angle.Value.Value).UnsignedMod( 360f );
 
-			// The shader expects radians.
-			var angleRad = angleDeg.Value.DegreeToRadian();
-			outAngle = angleRad;
+			outAngle = degrees.DegreeToRadian();
 
 			return true;
 		}
@@ -2415,6 +2454,9 @@ namespace Sandbox.UI
 		{
 			TextGradient = new();
 			TextGradient.GradientType = GradientInfo.GradientTypes.Linear;
+
+			// CSS degrees, and an omitted angle means "to bottom".
+			TextGradient.Angle = 180f;
 
 			var p = new Parse( gradient );
 			p.SkipWhitespaceAndNewlines();
@@ -2804,14 +2846,14 @@ namespace Sandbox.UI
 
 			//
 			// https://www.w3.org/TR/css-images-3/#linear-gradient-syntax
-			// top/bottom are flipped in order to match css spec, our coordinate systems differ
-			// from browser implementations
+			// Straight CSS degrees - clockwise from "to top". Callers convert to whatever
+			// their own renderer wants.
 			//
 			Dictionary<string, float> directions = new Dictionary<string, float>()
 			{
-				{ "bottom", 0 },
+				{ "top", 0 },
 				{ "right", 90 },
-				{ "top", 180 },
+				{ "bottom", 180 },
 				{ "left", 270 }
 			};
 
@@ -2848,9 +2890,7 @@ namespace Sandbox.UI
 					var unit = "deg";
 					if ( p.IsLetter ) unit = p.ReadUntilWhitespaceOrNewlineOrEnd( "," );
 
-					// CSS angles - +x is assumed to be 0 degrees, whereas we would assume +y is 0 degrees,
-					// so we add 90deg here in order to match the CSS spec.
-					return StyleHelpers.RotationDegrees( num, unit ) + 90f;
+					return StyleHelpers.RotationDegrees( num, unit );
 				}
 			}
 

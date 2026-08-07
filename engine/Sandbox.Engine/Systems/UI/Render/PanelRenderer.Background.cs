@@ -13,6 +13,7 @@ partial class PanelRenderer
 			var opacity = state.RenderOpacity;
 			var desc = CreateBoxDescriptor( panel, style, opacity );
 			desc.BackgroundBlendMode = panel.BackgroundBlendMode;
+			desc.BackgroundGradient = style.BackgroundGradient;
 
 			var texture = style.BackgroundImage;
 			if ( texture is not null && texture != Texture.Invalid )
@@ -32,6 +33,22 @@ partial class PanelRenderer
 
 				if ( texture.IsDirty )
 					texture.IsDirty = false;
+			}
+			else if ( desc.HasGradient )
+			{
+				// Gradients have no intrinsic size - background-size/position apply to
+				// their tile like the web, sized to the panel by default.
+				desc.BackgroundRect = ImageRect.Calculate( new ImageRect.Input
+				{
+					ScaleToScreen = panel.ScaleToScreen,
+					Image = null,
+					PanelRect = panel.Box.Rect,
+					DefaultSize = Length.Auto,
+					ImagePositionX = style.BackgroundPositionX,
+					ImagePositionY = style.BackgroundPositionY,
+					ImageSizeX = style.BackgroundSizeX,
+					ImageSizeY = style.BackgroundSizeY,
+				} ).Rect;
 			}
 
 			target.AddBox( desc );

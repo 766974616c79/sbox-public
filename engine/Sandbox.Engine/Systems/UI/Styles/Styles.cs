@@ -12,6 +12,12 @@ public partial class Styles : BaseStyles
 	internal GradientInfo TextGradient;
 
 	/// <summary>
+	/// A background linear-gradient, evaluated in the pixel shader rather than baked
+	/// to a texture. Empty when the background is a color, image or unsupported gradient.
+	/// </summary>
+	internal GradientInfo BackgroundGradient;
+
+	/// <summary>
 	/// Whether this style sheet has any transitions that would need to be run.
 	/// </summary>
 	public bool HasTransitions => Transitions != null && Transitions.List.Count > 0;

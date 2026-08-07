@@ -20,6 +20,9 @@ public record struct BoxDrawDescriptor( Rect PanelRect, Color Color )
 	internal BlendMode BackgroundBlendMode;
 	internal BlendMode OverrideBlendMode;
 
+	/// <summary>A shader-evaluated background gradient. Mutually exclusive with BackgroundImage.</summary>
+	internal GradientInfo BackgroundGradient;
+
 	internal Texture BorderImageTexture;
 	internal Vector4 BorderImageSlice;
 	internal BorderImageRepeat BorderImageRepeat;
@@ -29,6 +32,7 @@ public record struct BoxDrawDescriptor( Rect PanelRect, Color Color )
 	internal bool PremultiplyAlpha;
 
 	internal bool HasImage => BackgroundImage != null && BackgroundImage != Texture.Invalid;
+	internal bool HasGradient => !BackgroundGradient.ColorOffsets.IsDefaultOrEmpty;
 	internal bool HasBorderImage => BorderImageTexture != null;
 	internal bool IsTwoPass => HasImage && BackgroundBlendMode != BlendMode.Normal;
 

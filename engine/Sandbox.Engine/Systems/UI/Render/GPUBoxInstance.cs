@@ -82,13 +82,13 @@ struct GPUBoxInstance
 		var hasImage = desc.BackgroundImage != null && desc.BackgroundImage != Texture.Invalid;
 		var hasBorderImage = desc.BorderImageTexture != null;
 
-		var bgRect = hasImage
+		var bgRect = hasImage || desc.HasGradient
 			? (desc.BackgroundRect.z > 0 || desc.BackgroundRect.w > 0
 				? desc.BackgroundRect
 				: new Vector4( 0, 0, desc.PanelRect.Width, desc.PanelRect.Height ))
 			: Vector4.Zero;
 
-		var bgTint = hasImage
+		var bgTint = hasImage || desc.HasGradient
 			? desc.BackgroundTint
 			: new Color( 0, 0, 0, 0 );
 
@@ -141,6 +141,81 @@ struct GPUBoxInstance
 			AddressModeV = TextureAddressMode.Clamp,
 			Filter = filter
 		} );
+	}
+}
+
+[System.Runtime.CompilerServices.InlineArray( GradientInfo.MaxStops )]
+internal struct GradientStopColors
+{
+	Color _element;
+}
+
+[System.Runtime.CompilerServices.InlineArray( GradientInfo.MaxStops )]
+internal struct GradientStopOffsets
+{
+	float _element;
+}
+
+/// <summary>
+/// Per-gradient data uploaded to a StructuredBuffer for shader-evaluated background
+/// gradients. Must match GradientData in ui_cssbox_batched.shader. Colors are straight
+/// alpha in sRGB space, exactly as authored; Angle is radians, 0 pointing down the panel
+/// for linear and straight up for conic.
+/// </summary>
+[StructLayout( LayoutKind.Sequential )]
+internal struct GPUGradientInstance
+{
+	/// <summary>Bit per axis, set when that centre component is a fraction of the box rather than pixels.</summary>
+	const int CenterXIsFraction = 1;
+	const int CenterYIsFraction = 2;
+
+	public GradientStopColors StopColors;
+	public GradientStopOffsets StopOffsets;
+	public int Count;
+	public float Angle;
+	public int Type;
+	public int SizeMode;
+	public Vector2 Center;
+	public int CenterUnits;
+	public int Circle;
+
+	internal static GPUGradientInstance From( in GradientInfo gradient )
+	{
+		var stops = gradient.ColorOffsets;
+		var count = Math.Min( stops.Length, GradientInfo.MaxStops );
+
+		var inst = new GPUGradientInstance
+		{
+			Count = count,
+			Angle = gradient.Angle,
+			Type = (int)gradient.GradientType,
+			SizeMode = (int)gradient.SizeMode,
+			Circle = gradient.Circle ? 1 : 0,
+		};
+
+		// The box size only exists in the shader, so percentages travel as a fraction
+		// with a flag and get resolved there.
+		inst.Center = new Vector2( CenterValue( gradient.OffsetX ), CenterValue( gradient.OffsetY ) );
+
+		if ( IsFraction( gradient.OffsetX ) ) inst.CenterUnits |= CenterXIsFraction;
+		if ( IsFraction( gradient.OffsetY ) ) inst.CenterUnits |= CenterYIsFraction;
+
+		for ( int i = 0; i < count; i++ )
+		{
+			inst.StopColors[i] = stops[i].color;
+			inst.StopOffsets[i] = stops[i].offset ?? 0f;
+		}
+
+		return inst;
+	}
+
+	static bool IsFraction( Length length ) => length.Unit != LengthUnit.Pixels;
+
+	static float CenterValue( Length length )
+	{
+		// GetPixels against a parent of 1 turns a percentage into its fraction and
+		// leaves a pixel length alone.
+		return length.GetPixels( 1f );
 	}
 }
 

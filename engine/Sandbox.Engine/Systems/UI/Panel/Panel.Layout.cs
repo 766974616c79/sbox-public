@@ -248,6 +248,7 @@ public partial class Panel
 
 			HasBackground = ComputedStyle.BackgroundColor.Value.a > 0f
 				|| ComputedStyle.BorderImageSource is not null
+				|| !ComputedStyle.BackgroundGradient.ColorOffsets.IsDefaultOrEmpty
 				|| (ComputedStyle.BackgroundImage is not null && ComputedStyle.BackgroundImage != Texture.Invalid)
 				|| (ComputedStyle.BorderLeftColor.Value.a > 0f && ComputedStyle.BorderLeftWidth.Value.GetPixels( 1.0f ) > 0f)
 				|| (ComputedStyle.BorderTopColor.Value.a > 0f && ComputedStyle.BorderTopWidth.Value.GetPixels( 1.0f ) > 0f)

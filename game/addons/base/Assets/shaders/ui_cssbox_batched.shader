@@ -77,9 +77,27 @@ COMMON
 		int Invert;
 	};
 
+	// Must match GPUGradientInstance in GPUBoxInstance.cs. Stop colors are straight
+	// alpha in sRGB space; Angle is radians - 0 points down the panel for a linear
+	// gradient, straight up for a conic one.
+	struct GradientData
+	{
+		float4 StopColors[8];
+		float StopOffsets[8];
+		int Count;
+		float Angle;
+		int Type;			// 0 linear, 1 radial, 2 conic
+		int SizeMode;		// radial: 0 farthest-side, 1 farthest-corner, 2 closest-side, 3 closest-corner
+		float2 Center;		// radial and conic
+		int CenterUnits;	// bit 0/1 set when that centre axis is a fraction of the box, not pixels
+		int Circle;			// radial: 1 for a circle instead of an ellipse
+	};
+
 	StructuredBuffer<BoxInstanceData> BoxInstances < Attribute( "BoxInstances" ); >;
 	StructuredBuffer<ScissorData> ScissorBuffer < Attribute( "ScissorBuffer" ); >;
 	StructuredBuffer<TransformData> TransformBuffer < Attribute( "TransformBuffer" ); >;
+	StructuredBuffer<GradientData> GradientBuffer < Attribute( "GradientBuffer" ); >;
+
 }
 
 struct PixelInput
@@ -425,6 +443,108 @@ PS
 		return col;
 	}
 
+	//
+	// Where a pixel falls along the gradient, 0 at the first stop and 1 at the last.
+	// Linear runs along a line through the box centre, long enough that its ends touch
+	// the corners; radial and conic measure out from their centre - all matching the web.
+	//
+	float GradientPosition( GradientData g, float2 texCoord, float2 boxSize )
+	{
+		if ( g.Type == 0 ) // linear
+		{
+			float2 dir = float2( sin( g.Angle ), cos( g.Angle ) ); // 0 = down the panel, 90deg = right
+			float2 rel = ( texCoord - 0.5 ) * boxSize;
+			float len = abs( boxSize.x * dir.x ) + abs( boxSize.y * dir.y );
+			return dot( rel, dir ) / max( len, 0.0001 ) + 0.5;
+		}
+
+		float2 p = texCoord * boxSize;
+
+		float2 c;
+		c.x = ( g.CenterUnits & 1 ) ? g.Center.x * boxSize.x : g.Center.x;
+		c.y = ( g.CenterUnits & 2 ) ? g.Center.y * boxSize.y : g.Center.y;
+
+		float2 d = p - c;
+
+		if ( g.Type == 2 ) // conic
+		{
+			// Zero points straight up and the sweep runs clockwise, like the web. Angle
+			// rotates where it starts. frac wraps the negative half back into 0..1.
+			float a = atan2( d.x, -d.y );
+			return frac( ( a - g.Angle ) / 6.28318530718 );
+		}
+
+		// radial - the ending shape's radii, per the four CSS sizes
+		float2 nearSide = float2( min( c.x, boxSize.x - c.x ), min( c.y, boxSize.y - c.y ) );
+		float2 farSide = float2( max( c.x, boxSize.x - c.x ), max( c.y, boxSize.y - c.y ) );
+
+		float2 radius;
+
+		if ( g.Circle )
+		{
+			// One radius: the nearest/farthest side, or the distance to that corner.
+			float r =	( g.SizeMode == 0 ) ? max( farSide.x, farSide.y ) :
+						( g.SizeMode == 1 ) ? length( farSide ) :
+						( g.SizeMode == 2 ) ? min( nearSide.x, nearSide.y ) :
+						length( nearSide );
+
+			radius = float2( r, r );
+		}
+		else
+		{
+			// A corner ellipse keeps the matching side ellipse's aspect and is scaled to
+			// touch the corner, which always works out to sqrt(2) larger.
+			radius =	( g.SizeMode == 0 ) ? farSide :
+						( g.SizeMode == 1 ) ? farSide * 1.41421356 :
+						( g.SizeMode == 2 ) ? nearSide :
+						nearSide * 1.41421356;
+		}
+
+		return length( d / max( radius, 0.0001 ) );
+	}
+
+	//
+	// Stops interpolate premultiplied with linear alpha, in sRGB space, like the web.
+	//
+	float4 EvaluateGradient( GradientData g, float2 texCoord, float2 boxSize )
+	{
+		float t = GradientPosition( g, texCoord, boxSize );
+
+		int last = g.Count - 1;
+
+		if ( t <= g.StopOffsets[0] )
+			return g.StopColors[0];
+
+		if ( t >= g.StopOffsets[last] )
+			return g.StopColors[last];
+
+		float4 col = g.StopColors[last];
+
+		[loop]
+		for ( int s = 0; s < last; s++ )
+		{
+			float o1 = g.StopOffsets[s + 1];
+			if ( t <= o1 )
+			{
+				float o0 = g.StopOffsets[s];
+				float f = saturate( ( t - o0 ) / max( o1 - o0, 0.0001 ) );
+
+				float4 A = g.StopColors[s];
+				float4 B = g.StopColors[s + 1];
+
+				float a = lerp( A.a, B.a, f );
+				float3 rgb = lerp( A.rgb * A.a, B.rgb * B.a, f );
+				if ( a > 0.0001 )
+					rgb /= a;
+
+				col = float4( rgb, a );
+				break;
+			}
+		}
+
+		return col;
+	}
+
 	float4 MainPs( PixelInput i ) : SV_Target0
 	{
 		BoxInstanceData inst = BoxInstances[i.iInstanceID];
@@ -463,8 +583,9 @@ PS
 
 		float4 col = i.vColor;
 
-		// Background image
-		if ( inst.TextureIndex > 0 )
+		// Background image or gradient (negative TextureIndex = gradient table index).
+		// Both are tiles sized and placed by background-size/position, like the web.
+		if ( inst.TextureIndex != 0 )
 		{
 			float2 bgSize = inst.BackgroundRect.zw;
 			float4 bgTint = UnpackColor( inst.BackgroundTint );
@@ -472,13 +593,29 @@ PS
 
 			float2 vOffset = inst.BackgroundRect.xy / bgSize;
 			float2 vUV = -vOffset + ( i.vTexCoord.xy * ( boxSize / bgSize ) );
-			vUV = RotateTexCoord( vUV, inst.BackgroundAngle );
 
-			Texture2D tex = Bindless::GetTexture2D( inst.TextureIndex );
-			// float4 vImage = float4( 1, 0, 0, 1 );
-			float4 vImage = tex.SampleBias( Bindless::GetSampler( inst.SamplerIndex ), vUV, -1.5 );
-
+			float4 vImage;
 			int bgRepeat = inst.BackgroundRepeat;
+
+			if ( inst.TextureIndex > 0 )
+			{
+				vUV = RotateTexCoord( vUV, inst.BackgroundAngle );
+
+				Texture2D tex = Bindless::GetTexture2D( inst.TextureIndex );
+				vImage = tex.SampleBias( Bindless::GetSampler( inst.SamplerIndex ), vUV, -1.5 );
+			}
+			else
+			{
+				// The sampler wraps textures; wrap the tile coordinate ourselves.
+				// Clamping falls out of the stop walk, which pins to the end stops.
+				float2 tileUV = vUV;
+				if ( bgRepeat == 0 || bgRepeat == 1 ) tileUV.x = frac( tileUV.x );
+				if ( bgRepeat == 0 || bgRepeat == 2 ) tileUV.y = frac( tileUV.y );
+
+				GradientData gradient = GradientBuffer[ -inst.TextureIndex - 1 ];
+				vImage = EvaluateGradient( gradient, tileUV, bgSize );
+			}
+
 			if ( bgRepeat != 0 && bgRepeat != 4 )
 			{
 				if ( bgRepeat != 1 )

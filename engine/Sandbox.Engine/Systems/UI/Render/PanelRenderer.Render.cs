@@ -206,6 +206,11 @@ internal partial class PanelRenderer
 				gpu.BorderImageIndex = ri.BorderImage.Index > 0 ? ri.BorderImage.Index : Texture.Transparent.Index;
 			}
 
+			// Negative TextureIndex carries a gradient table index - resolved per frame,
+			// like scissors, because the table resets every frame.
+			if ( !ri.BackgroundGradient.ColorOffsets.IsDefaultOrEmpty )
+				gpu.TextureIndex = -batcher.GetOrAddGradient( in ri.BackgroundGradient ) - 1;
+
 			gpu.ScissorIndex = scissorIndex;
 			gpu.TransformIndex = transformIndex;
 			gpu.InverseScissorIndex = ri.HasInverseScissor ? batcher.GetOrAddScissor( ri.InverseScissor ) : -1;
@@ -335,6 +340,11 @@ internal partial class PanelRenderer
 					ri.BorderImage.MarkUsed();
 				gpu.BorderImageIndex = ri.BorderImage.Index > 0 ? ri.BorderImage.Index : Texture.Transparent.Index;
 			}
+
+			// Negative TextureIndex carries a gradient table index - resolved per frame,
+			// like scissors, because the table resets every frame.
+			if ( !ri.BackgroundGradient.ColorOffsets.IsDefaultOrEmpty )
+				gpu.TextureIndex = -batcher.GetOrAddGradient( in ri.BackgroundGradient ) - 1;
 
 			gpu.InverseScissorIndex = ri.HasInverseScissor ? batcher.GetOrAddScissor( ri.InverseScissor ) : -1;
 

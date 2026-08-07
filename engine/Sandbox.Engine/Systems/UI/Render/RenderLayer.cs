@@ -15,6 +15,7 @@ internal struct RenderInstance
 	public int Pass;
 	public Texture BackgroundImage;
 	public Texture BorderImage;
+	public GradientInfo BackgroundGradient;
 	public bool HasInverseScissor;
 	public PanelRenderer.GPUScissor InverseScissor;
 }
@@ -88,6 +89,8 @@ internal class RenderLayer
 			Pass = _buildPass,
 			BackgroundImage = desc.HasImage ? desc.BackgroundImage : null,
 			BorderImage = desc.HasBorderImage ? desc.BorderImageTexture : null,
+			// An image wins if both are somehow present - the gradient rides the same property.
+			BackgroundGradient = !desc.HasImage && desc.HasGradient ? desc.BackgroundGradient : default,
 		} );
 	}
 
