@@ -48,6 +48,13 @@ public static class Registry
 		// After the includes above, so waiting for a tool does not also inherit its public includes.
 		SchemaCompiler.Order( modules );
 
+		// A module shipping a launcher copies one, so it waits for whoever builds it.
+		var binlaunch = modules.FirstOrDefault( m => m.Name.Equals( "binlaunch", StringComparison.OrdinalIgnoreCase ) );
+		if ( binlaunch is not null )
+			foreach ( var module in modules )
+				if ( module.Launcher && module != binlaunch && !module.Dependencies.Contains( binlaunch ) )
+					module.Dependencies.Add( binlaunch );
+
 		return modules;
 	}
 

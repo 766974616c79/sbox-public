@@ -208,6 +208,14 @@ public sealed class Win64 : NativePlatform
 			// tier0 builds library names from these at runtime.
 			"_DLL_EXT=.dll", "_DLL_PREFIX=", "_EXTERNAL_DLL_EXT=.dll" );
 
+		// binlaunch loads the dll named after it, so a copy of it named after this module runs the module.
+		if ( module.Launcher )
+		{
+			var launcher = Paths.Relative( module.Dir, $"{Paths.ToolsDir}/binlaunch.exe" );
+			config.PostBuild.Add( $@"copy /y ""{launcher}"" ""$(OutDir)$(TargetName).exe""" );
+			config.PostBuild.Description = "Copying binlaunch as the module's executable";
+		}
+
 		if ( !options.Buildbot ) config.Define( "DEV_BUILD" );
 		if ( options.Retail ) config.Define( "RETAIL", "_RETAIL" );
 		if ( module.Tracy && !options.Retail ) config.Define( "TRACY_ENABLE", "TRACY_ON_DEMAND", "TRACY_DELAYED_INIT", "TRACY_MANUAL_LIFETIME", "TRACY_TIMER_FALLBACK" );
@@ -231,7 +239,6 @@ public sealed class Win64 : NativePlatform
 		Set( config.Cl, "MinimalRebuild", "false" );
 		Set( config.Cl, "ExceptionHandling", "false" );
 		Set( config.Cl, "RuntimeTypeInfo", "true" );
-		// /arch:AVX. The posix builds pass -mavx for the same baseline.
 		Set( config.Cl, "EnableEnhancedInstructionSet", "AdvancedVectorExtensions" );
 		Set( config.Cl, "FloatingPointModel", "Fast" );
 		Set( config.Cl, "ForceConformanceInForLoopScope", "true" );

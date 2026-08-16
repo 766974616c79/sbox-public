@@ -140,6 +140,12 @@ public abstract class Module
 	/// <summary>Compile in the Tracy profiler.</summary>
 	public bool Tracy = true;
 
+	/// <summary>
+	/// Ship an executable beside the dll, so the module can be run as a program as well as loaded. It is a
+	/// copy of binlaunch, which loads the dll sitting next to it under its own name.
+	/// </summary>
+	public bool Launcher;
+
 	/// <summary>Treat the module's sources as C.</summary>
 	public bool CompileAsC;
 
