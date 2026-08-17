@@ -3,6 +3,7 @@ using Sandbox.MovieMaker;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using static Editor.MovieMaker.Session;
 
 namespace Editor.MovieMaker;
 
@@ -441,10 +442,10 @@ public partial class MovieEditor : Widget, IHotloadManaged, IUndoSystemProvider
 	}
 
 	public void SaveFileAs() => SaveAsDialog( "Save Movie As..",
-		() => new MovieResource { Compiled = Session!.Project.Compile(), EditorData = Session.Project.Serialize() },
-		ConfirmedSwitchResource );
+		() => new CreateSequenceResult( new MovieResource { Compiled = Session!.Project.Compile(), EditorData = Session.Project.Serialize() } ),
+		result => ConfirmedSwitchResource( result.Resource ) );
 
-	public void SaveAsDialog( string title, Func<MovieResource> createResource, Action<MovieResource>? afterSave = null )
+	public void SaveAsDialog( string title, Func<CreateSequenceResult> createResource, Action<CreateSequenceResult>? afterSave = null )
 	{
 		var fd = new FileDialog( null );
 		fd.Title = title;
@@ -458,11 +459,11 @@ public partial class MovieEditor : Widget, IHotloadManaged, IUndoSystemProvider
 			return;
 
 		var sceneAsset = AssetSystem.CreateResource( "movie", fd.SelectedFile );
-		var file = createResource();
+		var result = createResource();
 
-		sceneAsset.SaveToDisk( file );
+		sceneAsset.SaveToDisk( result.Resource );
 
-		afterSave?.Invoke( file );
+		afterSave?.Invoke( result );
 	}
 
 	/// <summary>
