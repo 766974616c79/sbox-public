@@ -6,7 +6,7 @@ namespace Facepunch.Native;
 /// </summary>
 public static class Qt
 {
-	public const string Root = "thirdparty/lgpl/qt5";
+	public const string Root = "thirdparty/qt5";
 	public const string Generated = "obj/moc";
 
 	private static readonly string[] Defines =
