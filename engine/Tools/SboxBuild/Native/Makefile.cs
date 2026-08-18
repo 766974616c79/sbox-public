@@ -164,7 +164,7 @@ public static class Makefile
 		if ( !module.Schema.Any ) return null;
 
 		var sentinel = $"{objDir}/schema_sentinel.txt";
-		var tool = $"{Paths.ToolsDir}/{SchemaCompiler.Tool}";
+		var tool = $"{Paths.DevToolsDir}/{SchemaCompiler.Tool}";
 		var info = SchemaCompiler.InfoPath( module );
 		var inputs = string.Join( ' ', module.Schema.Files.Select( Path ) );
 

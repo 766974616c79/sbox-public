@@ -22,6 +22,7 @@ public sealed class Win64 : NativePlatform
 	{
 		Publish.Lib => LibPublic,
 		Publish.Tools => Paths.ToolsDir,
+		Publish.DevTools => Paths.DevToolsDir,
 		_ => Paths.BinDir
 	};
 
@@ -211,7 +212,7 @@ public sealed class Win64 : NativePlatform
 		// binlaunch loads the dll named after it, so a copy of it named after this module runs the module.
 		if ( module.Launcher )
 		{
-			var launcher = Paths.Relative( module.Dir, $"{Paths.ToolsDir}/binlaunch.exe" );
+			var launcher = Paths.Relative( module.Dir, $"{Paths.DevToolsDir}/binlaunch.exe" );
 			config.PostBuild.Add( $@"copy /y ""{launcher}"" ""$(OutDir)$(TargetName).exe""" );
 			config.PostBuild.Description = "Copying binlaunch as the module's executable";
 		}

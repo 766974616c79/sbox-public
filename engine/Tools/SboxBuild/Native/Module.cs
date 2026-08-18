@@ -13,10 +13,12 @@ public enum Publish
 {
 	/// <summary>game/bin/&lt;platform&gt; - the engine and its modules.</summary>
 	Bin,
+	/// <summary>game/bin/&lt;platform&gt;/tools - editor tools.</summary>
+	Tools,
 	/// <summary>lib/public/&lt;platform&gt; - static libraries.</summary>
 	Lib,
 	/// <summary>devtools/bin/&lt;platform&gt; - build time tools.</summary>
-	Tools
+	DevTools
 }
 
 public enum FileKind

@@ -28,6 +28,7 @@ public sealed class Linux64 : NativePlatform
 	{
 		Publish.Lib => LibPublic,
 		Publish.Tools => Paths.ToolsDir,
+		Publish.DevTools => Paths.DevToolsDir,
 		_ => Paths.BinDir
 	};
 

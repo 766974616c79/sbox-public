@@ -15,7 +15,8 @@ public static class Paths
 	public static string LibPublic => NativePlatform.Current.LibPublic;
 	public static string LibCommon => NativePlatform.Current.LibCommon;
 	public static string BinDir => $"../game/bin/{Platform}";
-	public static string ToolsDir => $"devtools/bin/{Platform}";
+	public static string ToolsDir => $"{BinDir}/tools";
+	public static string DevToolsDir => $"devtools/bin/{Platform}";
 
 	public static string Absolute( string srcRelative ) => Path.GetFullPath( Path.Combine( SrcDir, srcRelative ) );
 
