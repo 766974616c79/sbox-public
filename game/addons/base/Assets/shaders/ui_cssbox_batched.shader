@@ -57,6 +57,19 @@ COMMON
 		int TextMaskSamplerIndex;
 		int BackgroundClip;
 		float4 BackgroundClipRect;	// box clip: the inset. text clip: where the mask sits.
+		int ShapeIndex;				// into BorderShapeBuffer, or -1 for a plain rounded rect
+	};
+
+	// Must match GPUBorderShape in GPUBoxInstance.cs
+	struct BorderShapeData
+	{
+		float4 Polygon01;
+		float4 Polygon23;
+		float4 Polygon45;
+		float4 Polygon67;
+		int PolygonCount;
+		float4 Circle;
+		int Kind;
 	};
 
 	struct TransformData
@@ -107,6 +120,7 @@ COMMON
 	StructuredBuffer<ScissorData> ScissorBuffer < Attribute( "ScissorBuffer" ); >;
 	StructuredBuffer<TransformData> TransformBuffer < Attribute( "TransformBuffer" ); >;
 	StructuredBuffer<GradientData> GradientBuffer < Attribute( "GradientBuffer" ); >;
+	StructuredBuffer<BorderShapeData> BorderShapeBuffer < Attribute( "BorderShapeBuffer" ); >;
 
 }
 
@@ -348,6 +362,32 @@ PS
 		return mul( m, vTexCoord - offset ) + offset;
 	}
 
+	float2 ShapePoint( float4 p01, float4 p23, float4 p45, float4 p67, int i )
+	{
+		if ( i < 2 ) return i == 0 ? p01.xy : p01.zw;
+		if ( i < 4 ) return i == 2 ? p23.xy : p23.zw;
+		if ( i < 6 ) return i == 4 ? p45.xy : p45.zw;
+		return i == 6 ? p67.xy : p67.zw;
+	}
+
+	float ShapeSdf( float2 p, float4 p01, float4 p23, float4 p45, float4 p67, int count, float4 circle, int kind )
+	{
+		if ( kind == 2 ) return length( p - circle.xy ) - circle.z;
+		float2 first = ShapePoint( p01, p23, p45, p67, 0 );
+		float d = dot( p - first, p - first ), s = 1.0; int j = count - 1;
+		for ( int i = 0; i < 8; i++ )
+		{
+			if ( i >= count ) break;
+			float2 vi = ShapePoint( p01, p23, p45, p67, i ), vj = ShapePoint( p01, p23, p45, p67, j );
+			float2 e = vj - vi, w = p - vi;
+			float2 b = w - e * clamp( dot( w, e ) / max( dot( e, e ), 0.000001 ), 0.0, 1.0 );
+			d = min( d, dot( b, b ) );
+			bool3 c = bool3( p.y >= vi.y, p.y < vj.y, e.x * w.y > e.y * w.x );
+			if ( all( c ) || all( !c ) ) s *= -1.0; j = i;
+		}
+		return s * sqrt( d );
+	}
+
 	// How much of the pixel a clip stack lets through, 0..1. The clip's transform is affine, so the screen pixel's
 	// footprint carried through each clip's matrix gives its ramp width - no derivatives in the loop, so it can
 	// stop at Count.
@@ -575,7 +615,17 @@ PS
 		float4 borderWidth = inst.BorderSize;
 
 		float2 pos = ( i.vTexCoord.xy - 0.5 ) * boxSize;
-		float dOuter = RoundedRectSdf( pos, boxSize * 0.5, inst.BorderRadius, inst.BorderRadiusV );
+		float dOuter;
+		[branch] if ( inst.ShapeIndex >= 0 )
+		{
+			// Shape coordinates are relative to the box, so the local position is all it takes
+			BorderShapeData shape = BorderShapeBuffer[inst.ShapeIndex];
+			dOuter = ShapeSdf( i.vTexCoord.xy * boxSize, shape.Polygon01, shape.Polygon23, shape.Polygon45, shape.Polygon67, shape.PolygonCount, shape.Circle, shape.Kind );
+		}
+		else
+		{
+			dOuter = RoundedRectSdf( pos, boxSize * 0.5, inst.BorderRadius, inst.BorderRadiusV );
+		}
 
 		float4 col = i.vColor;
 
@@ -661,7 +711,7 @@ PS
 			col = AlphaBlend( vBoxBorder, col );
 			flMask = max( flMask, saturate( vBoxBorder.a ) );
 		}
-		else
+		else if ( inst.ShapeIndex < 0 )
 		{
 			bool hasBorder = borderWidth.x != 0 || borderWidth.y != 0 || borderWidth.z != 0 || borderWidth.w != 0;
 			if ( hasBorder )
@@ -676,6 +726,17 @@ PS
 				vBoxBorder.a = saturate( vBoxBorder.a ) * ( 1.0 - SdfCoverage( dInner ) );
 				col = AlphaBlend( vBoxBorder, col );
 				flMask = max( flMask, vBoxBorder.a );
+			}
+		}
+
+		if ( inst.ShapeIndex >= 0 )
+		{
+			float width = max( max( borderWidth.x, borderWidth.y ), max( borderWidth.z, borderWidth.w ) );
+			if ( width > 0 )
+			{
+				float4 border = inst.BorderColorL; border.rgb = UIDecodeColor( border.rgb );
+				border.a = saturate( border.a ) * SdfCoverage( dOuter ) * ( 1.0 - SdfCoverage( dOuter + width ) );
+				col = AlphaBlend( border, col ); flMask = max( flMask, border.a );
 			}
 		}
 

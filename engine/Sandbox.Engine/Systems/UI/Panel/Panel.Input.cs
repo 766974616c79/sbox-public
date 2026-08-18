@@ -51,6 +51,17 @@ public partial class Panel
 		var s = ComputedStyle;
 		if ( s == null ) return false;
 
+		var local = pos - rect.Position;
+		if ( s.BorderShape?.IsNone == false )
+		{
+			if ( s.BorderShape.Kind == BorderShapeKind.Circle )
+			{
+				var circle = s.BorderShape.ResolveCircle( new Rect( Vector2.Zero, rect.Size ) );
+				if ( Vector2.Distance( local, circle.Center ) > circle.Radius ) return false;
+			}
+			else if ( !IsInsideShapePolygon( local, rect.Size, s.BorderShape.Points ) ) return false;
+		}
+
 		if ( !s.HasBorderRadius ) return true;
 
 		var radii = BorderRadii.FromStyle( s, rect );
@@ -67,6 +78,18 @@ public partial class Panel
 		if ( OutsideCorner( radii.BottomLeft, pos.x, bottom ) ) return false;
 
 		return true;
+	}
+
+	static bool IsInsideShapePolygon( Vector2 pos, Vector2 size, IReadOnlyList<BorderShapePoint> points )
+	{
+		bool inside = false;
+		for ( int i = 0, j = points.Count - 1; i < points.Count; j = i++ )
+		{
+			var a = new Vector2( points[i].X.GetPixels( size.x ), points[i].Y.GetPixels( size.y ) );
+			var b = new Vector2( points[j].X.GetPixels( size.x ), points[j].Y.GetPixels( size.y ) );
+			if ( (a.y > pos.y) != (b.y > pos.y) && pos.x < (b.x - a.x) * (pos.y - a.y) / (b.y - a.y) + a.x ) inside = !inside;
+		}
+		return inside;
 	}
 
 	/// <summary>

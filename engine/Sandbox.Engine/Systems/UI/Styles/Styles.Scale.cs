@@ -57,6 +57,8 @@
 			Length.Scale( ref _transformoriginy, scale );
 			Scale( ref _transform, scale );
 
+			_bordershape = _bordershape?.Scale( scale );
+
 			Scale( BoxShadow, scale );
 			Scale( TextShadow, scale );
 			Scale( FilterDropShadow, scale );
