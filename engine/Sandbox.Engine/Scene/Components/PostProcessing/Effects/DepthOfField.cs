@@ -52,6 +52,12 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 	[Property, Group( "Properties" ), Icon( "flip_to_front" )]
 	public bool BackBlur { get; set; } = true;
 
+	/// <summary>
+	/// Visualize the circle of confusion in black and white instead of the composite.
+	/// </summary>
+	[Property, Group( "Properties" ), Icon( "bug_report" )]
+	public bool DebugView { get; set; } = false;
+
 	CommandList command = new CommandList( "Depth Of Field" );
 
 	private static ComputeShader ShaderCs = new ComputeShader( "postprocess_standard_dof_cs" );
@@ -168,6 +174,7 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 		command.ResourceBarrierTransition( DispatchArgsBuffer, ResourceState.UnorderedAccess, ResourceState.IndirectArgument );
 		command.ResourceBarrierTransition( TileDilated, ResourceState.NonPixelShaderResource );
 
+		command.Attributes.SetCombo( "D_DEBUG_COC", DebugView );
 		command.Attributes.Set( "TileList", TileListBuffer );
 		command.Attributes.Set( "TileDilatedSRV", TileDilated.ColorTexture );
 
