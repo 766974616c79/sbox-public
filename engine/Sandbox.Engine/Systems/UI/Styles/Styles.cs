@@ -6,6 +6,7 @@ namespace Sandbox.UI;
 /// Represents all supported CSS properties and their currently assigned values.
 /// </summary>
 [SkipHotload]
+[Expose]
 public partial class Styles : BaseStyles
 {
 	internal Dictionary<string, IStyleBlock.StyleProperty> RawValues = new Dictionary<string, IStyleBlock.StyleProperty>( StringComparer.OrdinalIgnoreCase );

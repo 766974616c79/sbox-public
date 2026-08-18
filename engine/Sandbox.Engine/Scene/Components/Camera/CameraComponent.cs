@@ -1,4 +1,5 @@
 ﻿
+using Sandbox.Engine;
 using Sandbox.Rendering;
 using Sandbox.UI;
 using System.Drawing;
@@ -898,6 +899,8 @@ public sealed partial class CameraComponent : Component, Component.ExecuteInEdit
 		if ( Scene is null )
 			return;
 
+		bool resized = false;
+
 		foreach ( var panel in Scene.GetAll<ScreenPanel>() )
 		{
 			if ( !panel.IsValid() || !panel.Active )
@@ -918,8 +921,15 @@ public sealed partial class CameraComponent : Component, Component.ExecuteInEdit
 			rootPanel.PreLayout( screenRect );
 			rootPanel.CalculateLayout();
 			rootPanel.PostLayout();
+			rootPanel.BuildDescriptors();
 
 			rootPanel.BuildCommandList();
+			resized = true;
 		}
+
+		// The render consumes the combined list, not the per-root ones - without
+		// recombining, it draws the last real frame's layout at the old size.
+		if ( resized )
+			GlobalContext.Current.UISystem.CombineCommandLists();
 	}
 }
