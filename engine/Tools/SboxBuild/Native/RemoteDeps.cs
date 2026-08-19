@@ -37,9 +37,8 @@ public static class RemoteDeps
 
 	public static readonly Dep[] All =
 	[
-		// No upstream release for what we use; this is the commit in sdl3/.git-hash.
 		// schemacompiler and the other devtools link tier0, which needs SDL3 beside them.
-		new( "sdl3", "2a623fd2241334efe086936b89faf559e6a73324", "thirdparty/sdl3" )
+		new( "sdl3", "release-3.4.14", "thirdparty/sdl3" )
 			{ RuntimeDir = ["../game/bin", "devtools/bin"] },
 		new( "dav1d", "1.5.3", "thirdparty/dav1d" ),
 		new( "libcurl", "8.12.1", "thirdparty/libcurl" ),
