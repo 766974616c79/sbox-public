@@ -147,6 +147,12 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 		//
 		// Downsample + circle of confusion + per-tile max CoC
 		//
+		// Pooled targets can be left in a read state from their previous use, writing to them
+		// as UAVs without transitioning back is undefined and corrupts on AMD
+		if ( BackBlur ) command.ResourceBarrierTransition( FinalBack, ResourceState.UnorderedAccess );
+		if ( FrontBlur ) command.ResourceBarrierTransition( FinalFront, ResourceState.UnorderedAccess );
+		command.ResourceBarrierTransition( TileMax, ResourceState.UnorderedAccess );
+
 		command.Attributes.Set( "OutColor0", (BackBlur ? FinalBack : FinalFront).ColorTexture );
 		command.Attributes.Set( "OutColor1", (FrontBlur ? FinalFront : FinalBack).ColorTexture );
 		command.Attributes.Set( "OutTile", TileMax.ColorTexture );
@@ -162,7 +168,10 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 		// the blur only runs on tiles it can actually reach, with a correct budget
 		//
 		command.ResourceBarrierTransition( TileListBuffer, ResourceState.UnorderedAccess );
-		command.ResourceBarrierTransition( DispatchArgsBuffer, ResourceState.UnorderedAccess );
+
+		// From CopyDestination so the SetBufferData reset above is flushed before the classify pass atomics
+		command.ResourceBarrierTransition( DispatchArgsBuffer, ResourceState.CopyDestination, ResourceState.UnorderedAccess );
+		command.ResourceBarrierTransition( TileDilated, ResourceState.UnorderedAccess );
 		command.Attributes.Set( "TileMaxSRV", TileMax.ColorTexture );
 		command.Attributes.Set( "OutTile", TileDilated.ColorTexture );
 		command.Attributes.Set( "TileListRW", TileListBuffer );
@@ -194,6 +203,9 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 			command.Clear( Vertical, Color.Transparent );
 			command.Clear( Diagonal, Color.Transparent );
 
+			command.ResourceBarrierTransition( Vertical, ResourceState.UnorderedAccess );
+			command.ResourceBarrierTransition( Diagonal, ResourceState.UnorderedAccess );
+
 			command.Attributes.Set( "IsFront", type == DoFTypes.FrontBlur );
 			command.Attributes.Set( "ListOffset", type == DoFTypes.FrontBlur ? TileCapacity : 0 );
 			command.Attributes.Set( "FinalSRV", target.ColorTexture );
@@ -205,6 +217,10 @@ public sealed class DepthOfField : BasePostProcess<DepthOfField>
 
 			command.ResourceBarrierTransition( Vertical, ResourceState.NonPixelShaderResource );
 			command.ResourceBarrierTransition( Diagonal, ResourceState.NonPixelShaderResource );
+
+			// The layer target was left in a read state for the diagonal pass, transition it
+			// back to writable before the hexagonal pass writes the final blur into it
+			command.ResourceBarrierTransition( target, ResourceState.UnorderedAccess );
 
 			command.Attributes.Set( "VerticalSRV", Vertical.ColorTexture );
 			command.Attributes.Set( "DiagonalSRV", Diagonal.ColorTexture );
