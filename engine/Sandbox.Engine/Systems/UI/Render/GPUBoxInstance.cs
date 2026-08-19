@@ -1,4 +1,4 @@
-using Sandbox.Rendering;
+﻿using Sandbox.Rendering;
 using System.Runtime.InteropServices;
 
 namespace Sandbox.UI;
@@ -11,49 +11,62 @@ namespace Sandbox.UI;
 struct GPUBoxInstance
 {
 	public Vector4 Rect;
-	public uint Color;
-	public Vector4 BorderRadius;
+	public Color Color;
+	public Vector4 BorderRadius;   // horizontal, (top-left, top-right, bottom-left, bottom-right)
+	public Vector4 BorderRadiusV;  // vertical, same order
 	public Vector4 BorderSize;
-	public uint BorderColorL;
-	public uint BorderColorT;
-	public uint BorderColorR;
-	public uint BorderColorB;
+	public Color BorderColorL;
+	public Color BorderColorT;
+	public Color BorderColorR;
+	public Color BorderColorB;
 	public int TextureIndex;
 	public int SamplerIndex;
 	public int BackgroundRepeat;
 	public float BackgroundAngle;
 	public Vector4 BackgroundRect;
-	public uint BackgroundTint;
+	public Color BackgroundTint;
 	public int BorderImageIndex;
 	public int BorderImageSamplerIndex;
 	public int BorderImageMode;
 	public int BorderImageFill;
 	public Vector4 BorderImageSlice;
-	public uint BorderImageTint;
-	public int Flags;
+	public Color BorderImageTint;
+	public int Flags; // unused, kept for layout
 	public int ScissorIndex;
 	public int Mode;
 	public int TransformIndex;
 	public int InverseScissorIndex;
+	public int TextMaskIndex;
+	public int TextMaskSamplerIndex;
+	public int BackgroundClip;
+	public Vector4 BackgroundClipRect;
 
-	// Mode 1/2 (shadow): BackgroundAngle = blur, BackgroundRect = (spread, offset.x, offset.y, 0)
-	//                     BorderSize = inverse scissor rect (for outset clipping)
-	//                     BorderColorL = inverse scissor corner radius (packed)
-	// Mode 3 (outline):   BackgroundAngle = width, BackgroundRect.x = offset
+	// Mode 1/2 (shadow): BackgroundRect = the blurred shape as (x, y, w, h) relative to Rect, BackgroundAngle = blur,
+	//                    BorderRadius/V = the shape's corners
+	// Mode 3 (outline):  BackgroundRect = (panel w, panel h, width, offset), BackgroundAngle = how far Rect is grown past the panel
+	//
+	// BackgroundClipRect is the box clip's inset (left, top, right, bottom), or for a text clip the mask's
+	// (x, y, w, h) relative to Rect - a box is never clipped to both.
 
 	internal static GPUBoxInstance FromShadow( in ShadowDrawDescriptor desc )
 	{
-		var shadowRect = desc.Inset ? desc.PanelRect : desc.PanelRect + desc.Offset;
-		shadowRect = shadowRect.Grow( desc.Spread );
-		var bloatedRect = shadowRect.Grow( desc.Blur );
+		// Outset: the border box, offset and grown by the spread, drawn outside the box.
+		// Inset: the padding box, offset and shrunk by the spread, drawn inside the box.
+		var spread = desc.Inset ? -desc.Spread : desc.Spread;
+		var shape = (desc.PanelRect + desc.Offset).Grow( spread );
+		var radii = desc.Radii.Grow( spread );
+
+		// A gaussian with sigma = blur / 2 is gone by three sigma
+		var quad = desc.Inset ? desc.PanelRect : shape.Grow( MathF.Ceiling( desc.Blur * 1.5f ) );
 
 		return new GPUBoxInstance
 		{
-			Rect = new Vector4( bloatedRect.Left, bloatedRect.Top, bloatedRect.Width, bloatedRect.Height ),
-			Color = desc.Color.RawInt,
-			BorderRadius = desc.BorderRadius,
+			Rect = new Vector4( quad.Left, quad.Top, quad.Width, quad.Height ),
+			Color = desc.Color,
+			BorderRadius = radii.Horizontal,
+			BorderRadiusV = radii.Vertical,
 			BackgroundAngle = desc.Blur,
-			BackgroundRect = new Vector4( desc.Spread, desc.Offset.x, desc.Offset.y, 0 ),
+			BackgroundRect = new Vector4( shape.Left - quad.Left, shape.Top - quad.Top, shape.Width, shape.Height ),
 			Mode = desc.Inset ? 2 : 1,
 			InverseScissorIndex = -1,
 		};
@@ -65,11 +78,14 @@ struct GPUBoxInstance
 		var bloat = outwardExtent + 1.0f;
 		var bloatedRect = desc.PanelRect.Grow( bloat );
 
+		var radii = desc.Radii.Clamped( desc.PanelRect.Width, desc.PanelRect.Height );
+
 		return new GPUBoxInstance
 		{
 			Rect = new Vector4( bloatedRect.Left, bloatedRect.Top, bloatedRect.Width, bloatedRect.Height ),
-			Color = desc.Color.RawInt,
-			BorderRadius = desc.BorderRadius,
+			Color = desc.Color,
+			BorderRadius = radii.Horizontal,
+			BorderRadiusV = radii.Vertical,
 			BackgroundRect = new Vector4( desc.PanelRect.Width, desc.PanelRect.Height, desc.Width, desc.Offset ),
 			BackgroundAngle = bloat,
 			Mode = 3,
@@ -92,30 +108,38 @@ struct GPUBoxInstance
 			? desc.BackgroundTint
 			: new Color( 0, 0, 0, 0 );
 
+		// Style radii are already clamped, user radii aren't
+		var radii = desc.Radii.Clamped( desc.PanelRect.Width, desc.PanelRect.Height );
+
 		return new GPUBoxInstance
 		{
 			Rect = new Vector4( desc.PanelRect.Left, desc.PanelRect.Top, desc.PanelRect.Width, desc.PanelRect.Height ),
-			Color = desc.Color.RawInt,
-			BorderRadius = desc.BorderRadius,
+			Color = desc.Color,
+			BorderRadius = radii.Horizontal,
+			BorderRadiusV = radii.Vertical,
 			BorderSize = desc.BorderSize,
-			BorderColorL = desc.BorderColorL.RawInt,
-			BorderColorT = desc.BorderColorT.RawInt,
-			BorderColorR = desc.BorderColorR.RawInt,
-			BorderColorB = desc.BorderColorB.RawInt,
+			BorderColorL = desc.BorderColorL,
+			BorderColorT = desc.BorderColorT,
+			BorderColorR = desc.BorderColorR,
+			BorderColorB = desc.BorderColorB,
 			TextureIndex = hasImage ? desc.BackgroundImage.Index : 0,
 			SamplerIndex = GetSamplerIndex( desc.BackgroundRepeat, desc.FilterMode ),
 			BackgroundRepeat = (int)desc.BackgroundRepeat,
 			BackgroundAngle = desc.BackgroundAngle,
 			BackgroundRect = bgRect,
-			BackgroundTint = bgTint.RawInt,
+			BackgroundTint = bgTint,
 			BorderImageIndex = hasBorderImage ? desc.BorderImageTexture.Index : 0,
 			BorderImageSamplerIndex = GetClampSamplerIndex( desc.FilterMode ),
 			BorderImageMode = hasBorderImage ? (desc.BorderImageRepeat == UI.BorderImageRepeat.Stretch ? 2 : 1) : 0,
 			BorderImageFill = hasBorderImage && desc.BorderImageFill == UI.BorderImageFill.Filled ? 1 : 0,
 			BorderImageSlice = desc.BorderImageSlice,
-			BorderImageTint = hasBorderImage ? desc.BorderImageTint.RawInt : 0,
-			Flags = desc.PremultiplyAlpha ? 1 : 0,
+			BorderImageTint = hasBorderImage ? desc.BorderImageTint : default,
+			Flags = 0,
 			InverseScissorIndex = -1,
+			BackgroundClip = (int)desc.BackgroundClip,
+			BackgroundClipRect = desc.BackgroundClip == UI.BackgroundClip.Text ? desc.TextMaskRect : desc.BackgroundClipInset,
+			TextMaskIndex = desc.HasTextMask ? desc.TextMask.Index : 0,
+			TextMaskSamplerIndex = desc.HasTextMask ? GetClampSamplerIndex( FilterMode.Bilinear ) : 0,
 		};
 	}
 
@@ -226,10 +250,49 @@ internal struct GPUGradientInstance
 [StructLayout( LayoutKind.Sequential )]
 internal struct ScissorInstance
 {
-	public Vector4 Rect;
-	public Vector4 CornerRadius;
-	public Matrix TransformMat;
+	public int Count;
 	public int Invert;
+	public int Pad0;
+	public int Pad1;
+	public GPUClipShapes Clips;
+
+	internal static ScissorInstance From( in PanelRenderer.GPUScissor scissor )
+	{
+		var s = new ScissorInstance { Count = scissor.Count, Invert = scissor.Invert ? 1 : 0 };
+
+		for ( int i = 0; i < scissor.Count; i++ )
+		{
+			ref readonly var c = ref scissor.Clips[i];
+			s.Clips[i] = new GPUClipShape
+			{
+				Rect = c.Rect.ToVector4(),
+				RadiiH = c.Radii.Horizontal,
+				RadiiV = c.Radii.Vertical,
+				TransformMat = c.Matrix,
+			};
+		}
+
+		return s;
+	}
+}
+
+/// <summary>
+/// One rounded rect of a clip stack. Rect is left, top, right, bottom in the clipping panel's layout space,
+/// TransformMat takes screen space there.
+/// </summary>
+[StructLayout( LayoutKind.Sequential )]
+internal struct GPUClipShape
+{
+	public Vector4 Rect;
+	public Vector4 RadiiH;
+	public Vector4 RadiiV;
+	public Matrix TransformMat;
+}
+
+[System.Runtime.CompilerServices.InlineArray( PanelRenderer.GPUScissor.MaxClips )]
+internal struct GPUClipShapes
+{
+	GPUClipShape _element;
 }
 
 /// <summary>

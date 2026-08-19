@@ -101,6 +101,22 @@ public partial class Styles : BaseStyles
 		}
 	}
 
+	/// <summary>
+	/// Whether any corner is rounded, so callers can skip resolving radii at all.
+	/// </summary>
+	public bool HasBorderRadius
+	{
+		get
+		{
+			if ( BorderTopLeftRadius.HasValue && BorderTopLeftRadius.Value.Value > 0 ) return true;
+			if ( BorderTopRightRadius.HasValue && BorderTopRightRadius.Value.Value > 0 ) return true;
+			if ( BorderBottomLeftRadius.HasValue && BorderBottomLeftRadius.Value.Value > 0 ) return true;
+			if ( BorderBottomRightRadius.HasValue && BorderBottomRightRadius.Value.Value > 0 ) return true;
+
+			return false;
+		}
+	}
+
 
 	public Margin GetInset( Vector2 size )
 	{
@@ -281,6 +297,20 @@ public partial class Styles : BaseStyles
 					LerpProperty( "border-top-right-radius", from, to, delta );
 					LerpProperty( "border-bottom-right-radius", from, to, delta );
 					LerpProperty( "border-bottom-left-radius", from, to, delta );
+					break;
+
+				// A corner's vertical radius travels with its horizontal one
+				case "border-top-left-radius":
+					LerpProperty( "border-top-left-radius-v", from, to, delta );
+					break;
+				case "border-top-right-radius":
+					LerpProperty( "border-top-right-radius-v", from, to, delta );
+					break;
+				case "border-bottom-right-radius":
+					LerpProperty( "border-bottom-right-radius-v", from, to, delta );
+					break;
+				case "border-bottom-left-radius":
+					LerpProperty( "border-bottom-left-radius-v", from, to, delta );
 					break;
 			}
 		}

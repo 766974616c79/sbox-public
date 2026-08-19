@@ -272,6 +272,9 @@ public partial class Panel
 		// cascading styles have changed.
 		cascade.ParentChanged = cascade.ParentChanged || changed;
 
+		// background-clip: text clips to the text of the whole subtree, so every label under it lends its own
+		cascade.ClipBackgroundToText = cascade.ClipBackgroundToText || ComputedStyle.BackgroundClip == BackgroundClip.Text;
+
 		for ( int i = 0; i < _children.Count; i++ )
 		{
 			_children[i].PreLayout( cascade );

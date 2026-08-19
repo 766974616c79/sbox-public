@@ -547,7 +547,7 @@ public sealed partial class SceneCamera : IDisposable, IManagedCamera
 					break;
 				}
 
-			case Rendering.Stage.BeforePostProcess:
+			case Rendering.Stage.EarlyUI:
 				{
 					if ( RenderUI )
 						OnRenderUIBeforePostProcess?.Invoke();
@@ -560,7 +560,7 @@ public sealed partial class SceneCamera : IDisposable, IManagedCamera
 					break;
 				}
 
-			case Rendering.Stage.AfterUI:
+			case Rendering.Stage.UI:
 				{
 					OnRenderUI?.Invoke();
 					break;

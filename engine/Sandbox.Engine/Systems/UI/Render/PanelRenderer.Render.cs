@@ -213,7 +213,7 @@ internal partial class PanelRenderer
 
 			gpu.ScissorIndex = scissorIndex;
 			gpu.TransformIndex = transformIndex;
-			gpu.InverseScissorIndex = ri.HasInverseScissor ? batcher.GetOrAddScissor( ri.InverseScissor ) : -1;
+			gpu.InverseScissorIndex = ri.HasExtraScissor ? batcher.GetOrAddScissor( ri.ExtraScissor ) : -1;
 
 			// Pack z-depth in the high bits, per-panel intra-pass in the low bits.
 			int sortPass = zDepth * 256 + (ri.Pass & 0xFF);
@@ -281,7 +281,7 @@ internal partial class PanelRenderer
 		if ( panel.HasPanelLayer )
 		{
 			transform = Matrix.Identity;
-			scissor.Matrix = Matrix.Identity;
+			scissor.ClearMatrices();
 		}
 
 		cl.Attributes.Set( "TransformMat", transform );
@@ -346,7 +346,7 @@ internal partial class PanelRenderer
 			if ( !ri.BackgroundGradient.ColorOffsets.IsDefaultOrEmpty )
 				gpu.TextureIndex = -batcher.GetOrAddGradient( in ri.BackgroundGradient ) - 1;
 
-			gpu.InverseScissorIndex = ri.HasInverseScissor ? batcher.GetOrAddScissor( ri.InverseScissor ) : -1;
+			gpu.InverseScissorIndex = ri.HasExtraScissor ? batcher.GetOrAddScissor( ri.ExtraScissor ) : -1;
 
 			AddInstance( gpu, scissor, transform );
 		}
@@ -417,12 +417,11 @@ internal partial class PanelRenderer
 	{
 		float hue = (batchIndex * 137.508f) % 360f;
 		Color batchColor = new ColorHsv( hue, 0.7f, 0.9f, 0.85f );
-		var packed = batchColor.RawInt;
 
 		var span = CollectionsMarshal.AsSpan( pendingInstances );
 		for ( int i = 0; i < span.Length; i++ )
 		{
-			span[i].Color = packed;
+			span[i].Color = batchColor;
 			span[i].TextureIndex = 0;
 		}
 

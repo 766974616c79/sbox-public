@@ -66,22 +66,16 @@ internal class UIBatcher
 
 	internal int GetOrAddScissor( PanelRenderer.GPUScissor scissor )
 	{
-		if ( scissor.Rect.Width == 0 && scissor.Rect.Height == 0 )
+		if ( scissor.IsEmpty )
 			return -1;
 
-		var hash = HashCode.Combine( scissor.Rect, scissor.CornerRadius, scissor.Matrix, scissor.Invert );
+		var hash = scissor.GetHash();
 
 		if ( scissorLookup.TryGetValue( hash, out var existing ) )
 			return existing;
 
 		var index = scissorTable.Count;
-		scissorTable.Add( new ScissorInstance
-		{
-			Rect = scissor.Rect.ToVector4(),
-			CornerRadius = scissor.CornerRadius,
-			TransformMat = scissor.Matrix,
-			Invert = scissor.Invert ? 1 : 0,
-		} );
+		scissorTable.Add( ScissorInstance.From( scissor ) );
 
 		scissorLookup[hash] = index;
 		return index;

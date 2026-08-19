@@ -16,8 +16,9 @@ internal struct RenderInstance
 	public Texture BackgroundImage;
 	public Texture BorderImage;
 	public GradientInfo BackgroundGradient;
-	public bool HasInverseScissor;
-	public PanelRenderer.GPUScissor InverseScissor;
+	// A second clip on top of the panel's own: box-shadows use it to stay outside (outset) or inside (inset) their box
+	public bool HasExtraScissor;
+	public PanelRenderer.GPUScissor ExtraScissor;
 }
 
 /// <summary>Pairs a user draw descriptor with its position in the instance stream.</summary>
@@ -59,16 +60,10 @@ internal class RenderLayer
 		Instances.Add( new RenderInstance
 		{
 			GPU = GPUBoxInstance.FromShadow( desc ),
-			BlendMode = desc.Inset ? _buildBlendMode : BlendMode.Normal,
+			BlendMode = desc.Inset ? desc.OverrideBlendMode : BlendMode.Normal,
 			Pass = desc.Inset ? _buildPass : 0,
-			HasInverseScissor = !desc.Inset,
-			InverseScissor = !desc.Inset ? new PanelRenderer.GPUScissor
-			{
-				Rect = new Rect( desc.ScissorRect.x, desc.ScissorRect.y, desc.ScissorRect.z - desc.ScissorRect.x, desc.ScissorRect.w - desc.ScissorRect.y ),
-				CornerRadius = desc.ScissorCornerRadius,
-				Matrix = desc.ScissorTransformMat,
-				Invert = true,
-			} : default,
+			HasExtraScissor = true,
+			ExtraScissor = PanelRenderer.GPUScissor.Single( desc.PanelRect, desc.Radii, desc.ScissorTransformMat, invert: !desc.Inset ),
 		} );
 	}
 
@@ -96,10 +91,16 @@ internal class RenderLayer
 
 	public void AddOutline( in OutlineDrawDescriptor desc )
 	{
+		// Same pass rules as AddBox, so the outline stays on top of text that came before it
+		if ( _buildAnyBox && desc.OverrideBlendMode != _buildBlendMode )
+			_buildPass++;
+
+		_buildBlendMode = desc.OverrideBlendMode;
+
 		Instances.Add( new RenderInstance
 		{
 			GPU = GPUBoxInstance.FromOutline( desc ),
-			BlendMode = _buildBlendMode,
+			BlendMode = desc.OverrideBlendMode,
 			Pass = _buildPass,
 		} );
 	}

@@ -102,6 +102,15 @@ namespace Sandbox.UI
 				case "border-radius":
 					return SetBorderRadius( value );
 
+				case "border-top-left-radius":
+					return SetCornerRadius( value, v => BorderTopLeftRadius = v, v => BorderTopLeftRadiusV = v );
+				case "border-top-right-radius":
+					return SetCornerRadius( value, v => BorderTopRightRadius = v, v => BorderTopRightRadiusV = v );
+				case "border-bottom-right-radius":
+					return SetCornerRadius( value, v => BorderBottomRightRadius = v, v => BorderBottomRightRadiusV = v );
+				case "border-bottom-left-radius":
+					return SetCornerRadius( value, v => BorderBottomLeftRadius = v, v => BorderBottomLeftRadiusV = v );
+
 				case "border":
 					return SetBorder( value, w => BorderWidth = w, c => BorderColor = c );
 
@@ -238,6 +247,9 @@ namespace Sandbox.UI
 
 				case "background-repeat":
 					return SetBackgroundRepeat( value );
+
+				case "background-clip":
+					return SetBackgroundClip( value );
 
 				case "background-playback-state":
 					BackgroundPlaybackPaused = value == "paused";
@@ -493,49 +505,75 @@ namespace Sandbox.UI
 			return true;
 		}
 
+		/// <summary>
+		/// One to four lengths in CSS corner order (top-left, top-right, bottom-right, bottom-left), missing ones
+		/// repeating like margin. Null when the text isn't lengths.
+		/// </summary>
+		static Length[] ReadCornerLengths( string value )
+		{
+			var p = new Parse( value ).SkipWhitespaceAndNewlines();
+			var read = new List<Length>( 4 );
+
+			while ( !p.IsEnd && read.Count < 4 && p.TryReadLength( out var l ) )
+			{
+				read.Add( l );
+				p = p.SkipWhitespaceAndNewlines();
+			}
+
+			if ( read.Count == 0 || !p.IsEnd )
+				return null;
+
+			return read.Count switch
+			{
+				1 => [read[0], read[0], read[0], read[0]],
+				2 => [read[0], read[1], read[0], read[1]],
+				3 => [read[0], read[1], read[2], read[1]],
+				_ => [read[0], read[1], read[2], read[3]],
+			};
+		}
+
+		/// <summary>
+		/// border-radius: horizontal radii, then optionally "/" and the vertical radii for elliptical corners.
+		/// </summary>
 		bool SetBorderRadius( string value )
 		{
-			var p = new Parse( value );
+			var slash = value.IndexOf( '/' );
+			var h = ReadCornerLengths( slash < 0 ? value : value.Substring( 0, slash ) );
+			if ( h == null ) return false;
+
+			var v = h;
+			if ( slash >= 0 )
+			{
+				v = ReadCornerLengths( value.Substring( slash + 1 ) );
+				if ( v == null ) return false;
+			}
+
+			BorderTopLeftRadius = h[0];
+			BorderTopRightRadius = h[1];
+			BorderBottomRightRadius = h[2];
+			BorderBottomLeftRadius = h[3];
+			BorderTopLeftRadiusV = v[0];
+			BorderTopRightRadiusV = v[1];
+			BorderBottomRightRadiusV = v[2];
+			BorderBottomLeftRadiusV = v[3];
+			return true;
+		}
+
+		/// <summary>
+		/// A single corner: one length for a circle, two for an ellipse (horizontal then vertical).
+		/// </summary>
+		static bool SetCornerRadius( string value, Action<Length?> setH, Action<Length?> setV )
+		{
+			var p = new Parse( value ).SkipWhitespaceAndNewlines();
+			if ( !p.TryReadLength( out var h ) ) return false;
 
 			p = p.SkipWhitespaceAndNewlines();
+			var v = h;
+			if ( !p.IsEnd && !p.TryReadLength( out v ) ) return false;
+			if ( !p.SkipWhitespaceAndNewlines().IsEnd ) return false;
 
-			if ( p.IsEnd )
-				return false;
-
-			if ( !p.TryReadLength( out var a ) )
-				return false;
-
-			if ( p.IsEnd || !p.TryReadLength( out var b ) )
-			{
-				BorderTopLeftRadius = a;
-				BorderTopRightRadius = a;
-				BorderBottomRightRadius = a;
-				BorderBottomLeftRadius = a;
-				return true;
-			}
-
-			if ( p.IsEnd || !p.TryReadLength( out var c ) )
-			{
-				BorderTopLeftRadius = a;
-				BorderTopRightRadius = b;
-				BorderBottomRightRadius = a;
-				BorderBottomLeftRadius = b;
-				return true;
-			}
-
-			if ( p.IsEnd || !p.TryReadLength( out var d ) )
-			{
-				BorderTopLeftRadius = a;
-				BorderTopRightRadius = b;
-				BorderBottomRightRadius = c;
-				BorderBottomLeftRadius = b;
-				return true;
-			}
-
-			BorderTopLeftRadius = a;
-			BorderTopRightRadius = b;
-			BorderBottomRightRadius = c;
-			BorderBottomLeftRadius = d;
+			setH( h );
+			setV( v );
 			return true;
 		}
 
@@ -1724,11 +1762,10 @@ namespace Sandbox.UI
 			 * We support a version of the "background" syntax that consists only of
 			 * the final background layer; we also omit:
 			 * - background-attachment
-			 * - background-clip
 			 * - background-origin
 			 * 
 			 * so our syntax can be defined as:
-			 * background: <bg-image> || <bg-position> [ / <bg-size> ]? || <repeat-style> || <'background-color'>
+			 * background: <bg-image> || <bg-position> [ / <bg-size> ]? || <repeat-style> || <box> || <'background-color'>
 			 * https://drafts.csswg.org/css-backgrounds/#the-background
 			 */
 
@@ -1738,6 +1775,7 @@ namespace Sandbox.UI
 			_backgroundImage = NoImage;
 			BackgroundColor = Color.Transparent;
 			BackgroundGradient = default;
+			BackgroundClip = UI.BackgroundClip.BorderBox;
 
 			var p = new Parse( value );
 
@@ -1778,6 +1816,8 @@ namespace Sandbox.UI
 						//
 						SetBackgroundRepeat( part );
 					}
+					// <box> - we have no background-origin, so a box value only sets the clip
+					else if ( SetBackgroundClip( part ) ) continue;
 					else
 					{
 						// A bare colour token (named colour, #hex, etc.)
@@ -2432,6 +2472,15 @@ namespace Sandbox.UI
 			}
 
 			return false;
+		}
+
+		bool SetBackgroundClip( string value )
+		{
+			if ( !Enum.TryParse<BackgroundClip>( value.Replace( "-", "" ), true, out var clip ) )
+				return false;
+
+			BackgroundClip = clip;
+			return true;
 		}
 
 		bool SetBackgroundRepeat( string value )

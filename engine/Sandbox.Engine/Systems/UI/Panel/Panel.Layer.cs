@@ -68,7 +68,8 @@ public partial class Panel
 		// Set identity transform for layer content
 		globalCL.Attributes.Set( "TransformMat", Matrix.Identity );
 
-		var handle = globalCL.GetRenderTarget( PanelLayerRTName, (int)_panelLayerSize.Value.x, (int)_panelLayerSize.Value.y, depthFormat: ImageFormat.None );
+		// 8-bit sRGB so the layer round-trips exactly through the UI shaders' sRGB read/write in both gamma and linear mode. HDR color clamps inside it.
+		var handle = globalCL.GetRenderTarget( PanelLayerRTName, (int)_panelLayerSize.Value.x, (int)_panelLayerSize.Value.y, ImageFormat.RGBA8888, ImageFormat.None );
 
 		render.PushLayer( this, globalCL, handle, CachedLayerMatrix.Value );
 	}
@@ -151,7 +152,8 @@ public partial class Panel
 		attributes.Set( "FilterHueRotate", ComputedStyle.FilterHueRotate.Value.GetPixels( 1.0f ) );
 		attributes.Set( "FilterTint", ComputedStyle.FilterTint ?? Vector4.One );
 
-		float growSize = blurSize;
+		// filter: blur( r ) is a gaussian with sigma r, which reaches three sigma out. ui_filter.shader assumes this
+		float growSize = MathF.Ceiling( blurSize * 3.0f );
 
 		//
 		// Handle masks
@@ -232,10 +234,8 @@ public partial class Panel
 
 			var shadowSize = new Vector2( shadow.OffsetX, shadow.OffsetY );
 
-			// Grow outerRect so that it can fit the shadow
-			float growSize = MathF.Max( shadowSize.x, shadowSize.y );
-			growSize = MathF.Max( 1.0f, growSize );
-			growSize *= MathF.Max( 1.0f, shadow.Blur * 2.0f );
+			// Grow outerRect to fit the shadow: its offset plus three sigma of gaussian. For drop-shadow the blur value is the sigma
+			float growSize = MathF.Max( MathF.Abs( shadowSize.x ), MathF.Abs( shadowSize.y ) ) + MathF.Ceiling( shadow.Blur * 3.0f ) + 1.0f;
 			outerRect = outerRect.Grow( growSize );
 
 			ResetPrefilterAttributes( commandList );

@@ -499,6 +499,23 @@ public sealed partial class CameraComponent : Component, Component.ExecuteInEdit
 	[Obsolete( "Use CommandList" )]
 	public IDisposable AddHookAfterUI( string debugName, int order, Action<SceneCamera> renderEffect ) => null;
 
+	/// <summary>
+	/// Anything to draw at <see cref="Stage.EarlyUI"/>? The pipeline skips that layer's passes otherwise.
+	/// </summary>
+	private bool HasEarlyUI()
+	{
+		if ( commandlists.ContainsKey( Stage.EarlyUI ) )
+			return true;
+
+		foreach ( var c in Scene.renderScreenPanels )
+		{
+			if ( c.Active && c.Timing == ScreenPanel.RenderTiming.BeforePostProcess && (c.TargetCamera ?? (IsMainCamera ? this : null)) == this )
+				return true;
+		}
+
+		return false;
+	}
+
 	private void OnCameraRenderUI( SceneCamera camera, ScreenPanel.RenderTiming timing )
 	{
 		if ( Scene is null )
@@ -538,6 +555,7 @@ public sealed partial class CameraComponent : Component, Component.ExecuteInEdit
 
 			UpdateSceneCameraUI( sceneCamera );
 			sceneCamera.RenderUI = renderUI;
+			sceneCamera.Attributes.Set( "enableEarlyUI", HasEarlyUI() );
 			UpdateSceneCameraStereo( sceneCamera );
 		}
 	}
