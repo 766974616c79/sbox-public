@@ -8,6 +8,16 @@ namespace RenderTests;
 public class RenderTargetSizeTest
 {
 	[DataTestMethod]
+	[DataRow( 1, 1 )]
+	[DataRow( 2, 2 )]
+	[DataRow( 4, 3 )]
+	[DataRow( 1024, 11 )]
+	public void CalculatesMaxMipCountIncludingBaseLevel( int size, int expectedMipCount )
+	{
+		Assert.AreEqual( expectedMipCount, RenderTarget.CalculateMaxMipCount( size, size ) );
+	}
+
+	[DataTestMethod]
 	[DataRow( 1920f, 1080f, 1, 1920, 1080 )]
 	[DataRow( 1920f, 1080f, 2, 960, 540 )]
 	[DataRow( 1920f, 1080f, 4, 480, 270 )]

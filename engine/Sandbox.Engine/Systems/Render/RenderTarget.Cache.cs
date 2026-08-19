@@ -22,7 +22,6 @@ public sealed partial class RenderTarget
 	public static RenderTarget GetTemporary( int width, int height, ImageFormat colorFormat = ImageFormat.Default, ImageFormat depthFormat = ImageFormat.Default, MultisampleAmount msaa = MultisampleAmount.MultisampleNone, int numMips = 1, string targetName = "" )
 	{
 		const int maxSize = 1024 * 16;
-		int maxMips = (int)Math.Log2( Math.Max( width, height ) );
 
 		if ( width <= 0 ) throw new ArgumentException( $"width should be higher than 0 (was {width}x{height})" );
 		if ( width > maxSize ) throw new ArgumentException( $"width should be lower than ({maxSize})" );
@@ -31,7 +30,7 @@ public sealed partial class RenderTarget
 		if ( numMips <= 0 ) throw new ArgumentException( $"numMips should be higher than 0 (was {width}x{height}x{numMips})" );
 		if ( numMips > 1 && msaa != MultisampleAmount.MultisampleNone ) throw new ArgumentException( $"Texture cannot have both msaa and mips at same time" );
 
-		numMips = Math.Min( numMips, maxMips );
+		numMips = Math.Min( numMips, CalculateMaxMipCount( width, height ) );
 
 		if ( colorFormat == ImageFormat.Default )
 			colorFormat = Graphics.IdealColorFormat;
@@ -75,6 +74,11 @@ public sealed partial class RenderTarget
 		}
 
 		return rt;
+	}
+
+	internal static int CalculateMaxMipCount( int width, int height )
+	{
+		return (int)Math.Log2( Math.Max( width, height ) ) + 1; // matt: this is correct, do not fucking tocuh it
 	}
 
 	/// <summary>
