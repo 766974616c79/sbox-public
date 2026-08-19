@@ -203,6 +203,12 @@ internal struct GPUGradientInstance
 	public int CenterUnits;
 	public int Circle;
 
+	/// <summary>Bit per stop, set when that stop's offset is a pixel length rather than a fraction.</summary>
+	public int StopUnits;
+
+	/// <summary>Linear only - which corner the gradient runs to, 0 when it's an angle instead.</summary>
+	public int Corner;
+
 	internal static GPUGradientInstance From( in GradientInfo gradient )
 	{
 		var stops = gradient.ColorOffsets;
@@ -215,6 +221,7 @@ internal struct GPUGradientInstance
 			Type = (int)gradient.GradientType,
 			SizeMode = (int)gradient.SizeMode,
 			Circle = gradient.Circle ? 1 : 0,
+			Corner = (int)gradient.Corner,
 		};
 
 		// The box size only exists in the shader, so percentages travel as a fraction
@@ -228,6 +235,10 @@ internal struct GPUGradientInstance
 		{
 			inst.StopColors[i] = stops[i].color;
 			inst.StopOffsets[i] = stops[i].offset ?? 0f;
+
+			// A pixel offset only becomes a fraction once the gradient's length is known, which
+			// is in the shader - so it travels as it was written, like the centre does.
+			if ( stops[i].offsetIsPixels ) inst.StopUnits |= 1 << i;
 		}
 
 		return inst;

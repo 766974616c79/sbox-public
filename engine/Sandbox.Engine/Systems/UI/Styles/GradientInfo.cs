@@ -20,6 +20,12 @@ internal struct GradientInfo
 	/// <summary>Radial only - a circle rather than an ellipse.</summary>
 	public bool Circle;
 
+	/// <summary>
+	/// Linear only - the corner "to top left" and friends point at, or None for an angle. A corner's
+	/// direction depends on the box's aspect, so the shader works it out rather than the parser.
+	/// </summary>
+	public Corners Corner;
+
 	public ImmutableArray<Styles.GradientColorOffset> ColorOffsets;
 
 	public override int GetHashCode()
@@ -27,7 +33,16 @@ internal struct GradientInfo
 		if ( ColorOffsets.IsDefaultOrEmpty )
 			return 0;
 
-		return HashCode.Combine( HashCode.Combine( Angle, SizeMode, OffsetX, OffsetY, GradientType, ColorOffsets ), Circle );
+		return HashCode.Combine( HashCode.Combine( Angle, SizeMode, OffsetX, OffsetY, GradientType, ColorOffsets ), Circle, Corner );
+	}
+
+	public enum Corners
+	{
+		None = 0,
+		TopLeft = 1,
+		TopRight = 2,
+		BottomLeft = 3,
+		BottomRight = 4
 	}
 
 	public enum RadialSizeMode

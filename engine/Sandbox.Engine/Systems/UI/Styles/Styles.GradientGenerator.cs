@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Sandbox.UI
@@ -10,9 +10,12 @@ namespace Sandbox.UI
 			public Color color;
 			public float? offset;
 
+			/// <summary>Offset is a pixel length along the gradient line, not a fraction of it.</summary>
+			public bool offsetIsPixels;
+
 			public override int GetHashCode()
 			{
-				return HashCode.Combine( color, offset );
+				return HashCode.Combine( color, offset, offsetIsPixels );
 			}
 		}
 		public struct GradientGenerator
@@ -34,8 +37,10 @@ namespace Sandbox.UI
 
 			var restoreP = p;
 			float angle = 0; // radians, like TryParseAngle - 0 is "to bottom" in our convention
+			var corner = GradientInfo.Corners.None;
 			var angleStr = p.ReadSentence();
-			if ( TryParseAngle( angleStr, out angle ) )
+
+			if ( TryParseCorner( angleStr, out corner ) || TryParseAngle( angleStr, out angle ) )
 			{
 				p.Pointer++; // comma
 			}
@@ -51,11 +56,60 @@ namespace Sandbox.UI
 			info = new GradientInfo
 			{
 				Angle = angle,
+				Corner = corner,
 				GradientType = GradientInfo.GradientTypes.Linear,
 				ColorOffsets = stops,
 			};
 
 			return true;
+		}
+
+		/// <summary>
+		/// "to" and two side keywords - a corner. The web angles the gradient line so it runs corner
+		/// to corner, which needs the box's aspect, so only the corner itself is parsed here.
+		/// </summary>
+		private static bool TryParseCorner( string text, out GradientInfo.Corners corner )
+		{
+			corner = GradientInfo.Corners.None;
+
+			if ( string.IsNullOrWhiteSpace( text ) )
+				return false;
+
+			var p = new Parse( text );
+			p = p.SkipWhitespaceAndNewlines();
+
+			if ( !p.Is( "to ", 0, true ) )
+				return false;
+
+			p.Pointer += 3;
+
+			bool top = false, bottom = false, left = false, right = false;
+
+			while ( true )
+			{
+				p = p.SkipWhitespaceAndNewlines();
+				if ( p.IsEnd ) break;
+
+				var word = p.ReadWord( null, true );
+				if ( string.IsNullOrEmpty( word ) )
+					break;
+
+				switch ( word.ToLowerInvariant() )
+				{
+					case "top": top = true; break;
+					case "bottom": bottom = true; break;
+					case "left": left = true; break;
+					case "right": right = true; break;
+					default: return false;
+				}
+			}
+
+			if ( top && left ) corner = GradientInfo.Corners.TopLeft;
+			else if ( top && right ) corner = GradientInfo.Corners.TopRight;
+			else if ( bottom && left ) corner = GradientInfo.Corners.BottomLeft;
+			else if ( bottom && right ) corner = GradientInfo.Corners.BottomRight;
+
+			return corner != GradientInfo.Corners.None;
 		}
 
 		/// <summary>
@@ -322,6 +376,7 @@ namespace Sandbox.UI
 
 			Color? lastColor = null;
 			float? lastOffset = null;
+			bool lastOffsetIsPixels = false;
 
 			var p = new Parse( token );
 
@@ -346,16 +401,26 @@ namespace Sandbox.UI
 
 				// Then optionally parse the stop position
 				float? offset = null;
+				bool offsetIsPixels = false;
+
 				if ( wp.IsDigit && wp.TryReadFloat( out var stop ) )
 				{
-					if ( !wp.Is( '%' ) )
+					if ( wp.Is( '%' ) )
 					{
-						Log.Error( $"Only percent stop values are supported: '{w}'" );
+						wp.Pointer++;
+						offset = stop / 100;
+					}
+					else if ( wp.Is( "px", 0, true ) )
+					{
+						wp.Pointer += 2;
+						offset = stop;
+						offsetIsPixels = true;
+					}
+					else
+					{
+						Log.Error( $"Stop positions take a percentage or a pixel length: '{w}'" );
 						break;
 					}
-
-					wp.Pointer++;
-					offset = stop / 100;
 				}
 
 				wp = wp.SkipWhitespaceAndNewlines();
@@ -373,14 +438,17 @@ namespace Sandbox.UI
 						var gradient = new GradientGenerator();
 						gradient.from.color = lastColor.Value;
 						gradient.from.offset = lastOffset;
+						gradient.from.offsetIsPixels = lastOffsetIsPixels;
 						gradient.to.color = c.Value;
 						gradient.to.offset = offset;
+						gradient.to.offsetIsPixels = offsetIsPixels;
 
 						gradientGenerators.Add( gradient );
 					}
 
 					lastColor = c;
 					lastOffset = offset;
+					lastOffsetIsPixels = offsetIsPixels;
 				}
 
 				if ( p.Is( ',' ) )
@@ -481,6 +549,20 @@ namespace Sandbox.UI
 			return new Color( r, g, b, a ).ToColor32();
 		}
 
+		/// <summary>
+		/// A stop's position as a fraction of the gradient. The baked path only has the texture to
+		/// measure a pixel position against, where the shader has the real gradient line.
+		/// </summary>
+		private static float StopFraction( GradientColorOffset stop, int gradientWidth )
+		{
+			var offset = stop.offset ?? 0f;
+
+			if ( stop.offsetIsPixels )
+				return Math.Clamp( offset / Math.Max( gradientWidth, 1 ), 0f, 1f );
+
+			return offset;
+		}
+
 		private byte[] GenerateGradient( string token, int gradientWidth )
 		{
 			var gradientGenerators = ParseGradient( token );
@@ -493,8 +575,8 @@ namespace Sandbox.UI
 				var fromColor = gradient.from.color.ToColor32();
 				var toColor = gradient.to.color.ToColor32();
 
-				int fromPixel = (int)((gradient.from.offset.Value) * gradientWidth);
-				int toPixel = (int)((gradient.to.offset.Value) * gradientWidth);
+				int fromPixel = (int)(StopFraction( gradient.from, gradientWidth ) * gradientWidth);
+				int toPixel = (int)(StopFraction( gradient.to, gradientWidth ) * gradientWidth);
 
 				for ( int i = fromPixel; i < toPixel; i++ )
 				{

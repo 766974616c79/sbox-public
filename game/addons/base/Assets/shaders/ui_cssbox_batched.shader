@@ -1,4 +1,4 @@
-HEADER
+﻿HEADER
 {
 	DevShader = true;
 	Version = 1;
@@ -99,6 +99,8 @@ COMMON
 		float2 Center;		// radial and conic
 		int CenterUnits;	// bit 0/1 set when that centre axis is a fraction of the box, not pixels
 		int Circle;			// radial: 1 for a circle instead of an ellipse
+		int StopUnits;		// bit per stop, set when that offset is a pixel length not a fraction
+		int Corner;			// linear: 1 top-left, 2 top-right, 3 bottom-left, 4 bottom-right, 0 for an angle
 	};
 
 	StructuredBuffer<BoxInstanceData> BoxInstances < Attribute( "BoxInstances" ); >;
@@ -346,9 +348,8 @@ PS
 		return mul( m, vTexCoord - offset ) + offset;
 	}
 
-	// How much of the pixel a clip stack lets through, 0..1. Antialiased, so clipped content gets the same edge as
-	// the box that clips it. The clip's transform is affine, so the screen pixel's footprint in panel space, taken
-	// once, carried through each clip's matrix gives its ramp width - no derivatives inside the loop, which can then
+	// How much of the pixel a clip stack lets through, 0..1. The clip's transform is affine, so the screen pixel's
+	// footprint carried through each clip's matrix gives its ramp width - no derivatives in the loop, so it can
 	// stop at Count.
 	float ScissorCoverage( ScissorData scissor, float2 vPanelPos )
 	{
@@ -421,19 +422,31 @@ PS
 		return col;
 	}
 
-	//
-	// Where a pixel falls along the gradient, 0 at the first stop and 1 at the last.
-	// Linear runs along a line through the box centre, long enough that its ends touch
-	// the corners; radial and conic measure out from their centre - all matching the web.
-	//
-	float GradientPosition( GradientData g, float2 texCoord, float2 boxSize )
+	// Position along the gradient, 0 at its start and 1 at its end. Linear runs along a line through the box
+	// centre, long enough that its ends touch the corners; radial and conic measure out from their centre, all
+	// matching the web. gradLength comes back with it: how many pixels that 0..1 spans, which is what a stop
+	// position written in pixels is measured in.
+	float GradientPosition( GradientData g, float2 texCoord, float2 boxSize, out float gradLength )
 	{
+		gradLength = 1.0;
+
 		if ( g.Type == 0 ) // linear
 		{
 			float2 dir = float2( sin( g.Angle ), cos( g.Angle ) ); // 0 = down the panel, 90deg = right
+
+			// A corner keyword isn't 45 degrees: the gradient line is perpendicular to the diagonal
+			// joining the other two corners, so it leans with the box.
+			if ( g.Corner != 0 )
+			{
+				float2 towards = float2( ( g.Corner == 2 || g.Corner == 4 ) ? 1 : -1,
+										 ( g.Corner == 3 || g.Corner == 4 ) ? 1 : -1 );
+
+				dir = normalize( float2( towards.x * boxSize.y, towards.y * boxSize.x ) );
+			}
+
 			float2 rel = ( texCoord - 0.5 ) * boxSize;
-			float len = abs( boxSize.x * dir.x ) + abs( boxSize.y * dir.y );
-			return dot( rel, dir ) / max( len, 0.0001 ) + 0.5;
+			gradLength = abs( boxSize.x * dir.x ) + abs( boxSize.y * dir.y );
+			return dot( rel, dir ) / max( gradLength, 0.0001 ) + 0.5;
 		}
 
 		float2 p = texCoord * boxSize;
@@ -478,22 +491,33 @@ PS
 						nearSide * 1.41421356;
 		}
 
+		// The gradient ray runs to the ending shape, so that's what a pixel position is along
+		gradLength = radius.x;
+
 		return length( d / max( radius, 0.0001 ) );
 	}
 
-	//
+	// A stop's position as a fraction of the gradient, resolving the ones written as pixels
+	float GradientStop( GradientData g, int i, float gradLength )
+	{
+		if ( g.StopUnits & ( 1 << i ) )
+			return g.StopOffsets[i] / max( gradLength, 0.0001 );
+
+		return g.StopOffsets[i];
+	}
+
 	// Stops interpolate premultiplied with linear alpha, in sRGB space, like the web.
-	//
 	float4 EvaluateGradient( GradientData g, float2 texCoord, float2 boxSize )
 	{
-		float t = GradientPosition( g, texCoord, boxSize );
+		float gradLength;
+		float t = GradientPosition( g, texCoord, boxSize, gradLength );
 
 		int last = g.Count - 1;
 
-		if ( t <= g.StopOffsets[0] )
+		if ( t <= GradientStop( g, 0, gradLength ) )
 			return g.StopColors[0];
 
-		if ( t >= g.StopOffsets[last] )
+		if ( t >= GradientStop( g, last, gradLength ) )
 			return g.StopColors[last];
 
 		float4 col = g.StopColors[last];
@@ -501,10 +525,10 @@ PS
 		[loop]
 		for ( int s = 0; s < last; s++ )
 		{
-			float o1 = g.StopOffsets[s + 1];
+			float o1 = GradientStop( g, s + 1, gradLength );
 			if ( t <= o1 )
 			{
-				float o0 = g.StopOffsets[s];
+				float o0 = GradientStop( g, s, gradLength );
 				float f = saturate( ( t - o0 ) / max( o1 - o0, 0.0001 ) );
 
 				float4 A = g.StopColors[s];
@@ -550,14 +574,11 @@ PS
 		float2 boxSize = inst.Rect.zw;
 		float4 borderWidth = inst.BorderSize;
 
-		// Pixels from the box centre
 		float2 pos = ( i.vTexCoord.xy - 0.5 ) * boxSize;
 		float dOuter = RoundedRectSdf( pos, boxSize * 0.5, inst.BorderRadius, inst.BorderRadiusV );
 
 		float4 col = i.vColor;
 
-		// A texture's alpha is a mask - glyphs and icons are mostly edge - so it counts as
-		// coverage. A gradient's alpha is a colour the author chose, so it doesn't.
 		float flMask = 1.0;
 
 		// Background image or gradient (negative TextureIndex = gradient table index).
@@ -615,8 +636,7 @@ PS
 			col.rgb = lerp( col.rgb, vImage.rgb, saturate( vImage.a + ( 1 - col.a ) ) );
 			col.a = max( col.a, vImage.a );
 
-			// Text and icons arrive as a texture, and the glyph edge lives in its alpha - without
-			// this an HDR glyph has no coverage ramp at all and its edges go hard.
+			// A texture's alpha is a mask - a glyph's edge lives there - so it's coverage. A gradient's isn't.
 			if ( inst.TextureIndex > 0 )
 				flMask = saturate( vImage.a );
 		}
