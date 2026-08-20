@@ -159,20 +159,25 @@ public sealed partial class ObjectSelection( MeshTool tool ) : SelectionTool( to
 	{
 		_transformKind = TextureLockTransform.Scale;
 
+		var scaleFromIndividualOrigins = !GlobalSpace && _startPoints.Count > 1;
+
 		foreach ( var entry in _startPoints )
 		{
-			var position = entry.Value.Position - origin;
-			position *= basis.Inverse;
-			position *= deltaScale;
-			position *= basis;
-			position += origin;
+			var position = entry.Value.Position;
 
-			var scale = entry.Value.Scale * deltaScale;
+			if ( !scaleFromIndividualOrigins )
+			{
+				position -= origin;
+				position *= basis.Inverse;
+				position *= deltaScale;
+				position *= basis;
+				position += origin;
+			}
 
 			entry.Key.WorldTransform = new Transform(
 				position,
 				entry.Value.Rotation,
-				scale
+				entry.Value.Scale * deltaScale
 			);
 		}
 	}
