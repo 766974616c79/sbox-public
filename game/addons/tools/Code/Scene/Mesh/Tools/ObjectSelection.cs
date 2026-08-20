@@ -19,6 +19,8 @@ public sealed partial class ObjectSelection( MeshTool tool ) : SelectionTool( to
 	MeshComponent[] _meshes = [];
 	GameObject[] _objects = [];
 
+	protected override bool ShowSelectionBoundsDefault => true;
+
 	readonly Dictionary<MeshComponent, FaceTextureParameters[]> _startFaceParameters = [];
 
 	readonly record struct FaceTextureParameters( FaceHandle Face, Vector4 AxisU, Vector4 AxisV, Vector2 Scale );
@@ -397,7 +399,9 @@ public sealed partial class ObjectSelection( MeshTool tool ) : SelectionTool( to
 		UpdateMoveMode();
 		UpdateHovered();
 		UpdateSelectionMode();
-		DrawBounds();
+
+		if ( ShowSelectionBounds )
+			DrawBounds();
 	}
 
 	void UpdateMoveMode()

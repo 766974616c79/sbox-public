@@ -111,6 +111,13 @@ partial class ObjectSelection
 			}
 
 			Layout.AddStretchCell();
+
+			{
+				var group = AddGroup( "Visualization" );
+				group.Add( ControlSheetRow.Create(
+					tool.GetSerialized().GetProperty( nameof( ShowSelectionBounds ) )
+				) );
+			}
 		}
 
 		[Shortcut( "mesh.separate-components", "ALT+N", typeof( SceneViewWidget ) )]
