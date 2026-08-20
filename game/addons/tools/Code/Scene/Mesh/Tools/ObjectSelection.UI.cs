@@ -435,6 +435,9 @@ partial class ObjectSelection
 			_gos[0].Scene.Editor.FrameTo( bounds );
 		}
 
+		[Shortcut( "mesh.select-similar", "CTRL+ALT+O", typeof( SceneViewWidget ) )]
+		public void SelectSimilar() => _tool.SelectSimilar();
+
 		public void MergeMeshesByEdge()
 		{
 			if ( _meshes.Length < 2 ) return;
