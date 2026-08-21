@@ -104,7 +104,14 @@ public sealed class Linux64 : NativePlatform
 			if ( module.PrecompiledHeader is not null )
 			{
 				var root = Conventions.PchRoot( module );
-				if ( root is not null ) config.Include( root );
+				if ( root is not null )
+				{
+					config.Include( root );
+					// MSVC force includes the precompiled header into every source (/FI). The sources lean
+					// on that rather than including it themselves, so gcc has to be told the same with
+					// -include, or everything the header pulls in goes missing.
+					config.ForceInclude( module.PrecompiledHeader.Replace( '\\', '/' ) );
+				}
 			}
 
 			// The engine reads one type through a pointer to another, which -O2 is otherwise free to
@@ -129,7 +136,7 @@ public sealed class Linux64 : NativePlatform
 
 			if ( lib ) continue;
 
-			if ( !exe ) config.LinkOptions.Add( "-shared" );
+			if ( !exe ) config.LinkOptions.AddRange( ["-shared", "-Wl,--no-undefined"] );
 			config.LinkOptions.Add( "-Wl,-rpath,$ORIGIN" );
 
 			// SDL3 ships beside the engine, but a build time tool runs from devtools and still needs it.

@@ -784,7 +784,7 @@ file sealed class BoneTransformTrack : IPropertyTrack<Transform>
 		}
 		else
 		{
-			localTransform = MovieBoneAnimatorSystem.Get( renderer.Scene ).GetParentSpaceBone( renderer, bone.Index );
+			localTransform = MovieBoneAnimatorSystem.Current.GetParentSpaceBone( renderer, bone.Index );
 		}
 
 		return parentTransform.ToWorld( localTransform );
