@@ -317,7 +317,7 @@ internal class UploadBuildArtifacts
 
 			stream.Position = entryOffset + 38;
 			var attributes = reader.ReadUInt32();
-			if ( ( attributes >> 16 ) == 0 )
+			if ( (attributes >> 16) == 0 )
 			{
 				stream.Position = entryOffset + 38;
 				writer.Write( 0x81A4u << 16 ); // regular file, mode 0644

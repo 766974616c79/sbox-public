@@ -82,8 +82,13 @@ internal class BuildManaged( bool clean = false )
 				} )
 				{
 					var output = Path.Combine( publishRoot, Path.GetFileNameWithoutExtension( project ) );
-					if ( !Utility.RunDotnetCommand( Path.Combine( engineDir, "Launcher" ),
-						$"publish {project} -c Release -r {launcherRid} --self-contained false -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false -o \"{output}\"" ) )
+					var launcherDir = Path.Combine( engineDir, "Launcher" );
+					if ( !Utility.RunDotnetCommand( launcherDir,
+						$"restore {project} -r {launcherRid} -p:Configuration=Release -p:SelfContained=false -p:RestoreRecursive=false" ) )
+						return ExitCode.Failure;
+
+					if ( !Utility.RunDotnetCommand( launcherDir,
+						$"publish {project} -c Release -r {launcherRid} -p:SelfContained=false -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false -p:BuildProjectReferences=false --no-restore -o \"{output}\"" ) )
 						return ExitCode.Failure;
 
 					var name = project switch

@@ -131,8 +131,7 @@ public sealed class Linux64 : NativePlatform
 				"-fno-trapping-math", "-fassociative-math", "-freciprocal-math" );
 
 			config.Option( debug ? "-O0" : "-O2" );
-			if ( module.ThirdParty ) config.Option( "-w" );
-			else config.Option( ["-Wall", "-Wformat", "-Wformat-security", .. Warnings] );
+			config.Option( "-w" );
 
 			if ( lib ) continue;
 
@@ -152,15 +151,4 @@ public sealed class Linux64 : NativePlatform
 	/// <summary>The vendored SDL3, which tier0 links and every binary then needs at runtime.</summary>
 	public string SdlDir => $"thirdparty/sdl3/lib/{DirectoryName}";
 
-	/// <summary>Warnings the engine turns off.</summary>
-	private static readonly string[] Warnings =
-	[
-		"-Wno-char-subscripts", "-Wno-comment", "-Wno-delete-non-virtual-dtor", "-Wno-float-equal",
-		"-Wno-invalid-offsetof", "-Wno-maybe-uninitialized", "-Wno-missing-field-initializers",
-		"-Wno-multichar", "-Wno-parentheses", "-Wno-reorder", "-Wno-shadow", "-Wno-sign-compare",
-		"-Wno-strict-overflow", "-Wno-switch", "-Wno-trigraphs", "-Wno-unknown-pragmas",
-		"-Wno-unused-but-set-variable", "-Wno-unused-function", "-Wno-unused-label",
-		"-Wno-unused-local-typedefs", "-Wno-unused-parameter", "-Wno-unused-result", "-Wno-unused-value",
-		"-Wno-unused-variable", "-Wno-unknown-warning-option"
-	];
 }
