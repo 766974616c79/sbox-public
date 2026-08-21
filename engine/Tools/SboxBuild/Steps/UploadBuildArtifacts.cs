@@ -266,64 +266,8 @@ internal class UploadBuildArtifacts
 		{
 			foreach ( var (entryPath, absolutePath) in files )
 			{
-				var entry = archive.CreateEntryFromFile( absolutePath, entryPath, CompressionLevel.Fastest );
-				if ( entryPath is "game/sbox" or "game/sbox-dev" or "game/sbox-launcher"
-					or "game/sbox-standalone" or "game/sbox-server" or "game/benchmark"
-					or "game/bin/linuxsteamrt64/resourcecompiler" )
-				{
-					// The archive is assembled on Windows after downloading Linux build output.
-					entry.ExternalAttributes = (int)(0x81ED << 16); // regular file, mode 0755
-				}
+				archive.CreateEntryFromFile( absolutePath, entryPath, CompressionLevel.Fastest );
 			}
-		}
-		MarkArchiveAsUnix( zipPath );
-	}
-
-	private static void MarkArchiveAsUnix( string zipPath )
-	{
-		using var stream = new FileStream( zipPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None );
-		using var reader = new BinaryReader( stream, System.Text.Encoding.UTF8, true );
-		using var writer = new BinaryWriter( stream, System.Text.Encoding.UTF8, true );
-
-		const uint endSignature = 0x06054b50;
-		const uint centralSignature = 0x02014b50;
-		var searchStart = Math.Max( 0, stream.Length - ushort.MaxValue - 22 );
-		long endOffset = -1;
-		for ( var position = stream.Length - 22; position >= searchStart; position-- )
-		{
-			stream.Position = position;
-			if ( reader.ReadUInt32() == endSignature ) { endOffset = position; break; }
-		}
-		if ( endOffset < 0 ) throw new InvalidDataException( "ZIP end-of-central-directory record was not found." );
-
-		stream.Position = endOffset + 10;
-		var entryCount = reader.ReadUInt16();
-		stream.Position = endOffset + 16;
-		var centralOffset = reader.ReadUInt32();
-		stream.Position = centralOffset;
-
-		for ( var i = 0; i < entryCount; i++ )
-		{
-			var entryOffset = stream.Position;
-			if ( reader.ReadUInt32() != centralSignature ) throw new InvalidDataException( "Invalid ZIP central-directory record." );
-
-			stream.Position = entryOffset + 28;
-			var nameLength = reader.ReadUInt16();
-			var extraLength = reader.ReadUInt16();
-			var commentLength = reader.ReadUInt16();
-
-			stream.Position = entryOffset + 5;
-			writer.Write( (byte)3 );
-
-			stream.Position = entryOffset + 38;
-			var attributes = reader.ReadUInt32();
-			if ( (attributes >> 16) == 0 )
-			{
-				stream.Position = entryOffset + 38;
-				writer.Write( 0x81A4u << 16 ); // regular file, mode 0644
-			}
-
-			stream.Position = entryOffset + 46 + nameLength + extraLength + commentLength;
 		}
 	}
 
