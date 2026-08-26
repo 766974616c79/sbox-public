@@ -26,6 +26,22 @@ uint BaseResolution < Attribute("BaseResolution"); > ;
 
 #define NUM_MIPS 7
 
+// Evaluated at compile time
+float4 GetCoeff( int mip_level, int axis, int iSuperTap, int j )
+{
+	float4 v = 0;
+	[unroll]
+	for ( int m = 1; m < NUM_MIPS; m++ )
+	{
+		[unroll]
+		for ( int a = 0; a < 3; a++ )
+		{
+			if ( m == mip_level && a == axis ) v = coeffs[m][j][(NUM_TAPS / 4) * a + iSuperTap];
+		}
+	}
+	return v;
+}
+
 //--------------------------------------------------------------------------------------
 
 // Copyright 2016 Activision Publishing, Inc.
@@ -237,14 +253,15 @@ void FilterCubemapFast( uint3 DispatchThreadID )
 			float phi2 = phi*phi;
 
 			// sample
+			[unroll]
 			for ( int iSuperTap = 0; iSuperTap < NUM_TAPS / 4; iSuperTap++ )
 			{
-                const int index = (NUM_TAPS / 4) * axis + iSuperTap;
-				float4 coeffsDir0 = coeffs[mip_level][0][index];
-				float4 coeffsDir1 = coeffs[mip_level][1][index];
-				float4 coeffsDir2 = coeffs[mip_level][2][index];
-				float4 coeffsLevel = coeffs[mip_level][3][index];
-				float4 coeffsWeight = coeffs[mip_level][4][index];
+				float4 coeffsDir0 = GetCoeff( mip_level, axis, iSuperTap, 0 );
+				float4 coeffsDir1 = GetCoeff( mip_level, axis, iSuperTap, 1 );
+				float4 coeffsDir2 = GetCoeff( mip_level, axis, iSuperTap, 2 );
+				float4 coeffsLevel = GetCoeff( mip_level, axis, iSuperTap, 3 );
+				float4 coeffsWeight = GetCoeff( mip_level, axis, iSuperTap, 4 );
+                [unroll]
                 for (int iSubTap = 0; iSubTap < 4; iSubTap++) {
                     // determine sample attributes (dir, weight, mip_level)
                     float3 sample_dir = frameX * coeffsDir0[iSubTap] + frameY * coeffsDir1[iSubTap] + frameZ * coeffsDir2[iSubTap];
