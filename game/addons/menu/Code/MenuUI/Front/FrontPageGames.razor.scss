@@ -37,6 +37,7 @@ FrontPageGames
 
 		.title
 		{
+			font-family: $front-font;
 			font-size: 20px;
 			font-weight: 700;
 			color: $front-heading;
@@ -44,7 +45,8 @@ FrontPageGames
 
 		.description
 		{
-			font-size: 13px;
+			font-family: $front-font;
+			font-size: 14px;
 			font-weight: 500;
 			color: $front-secondary;
 		}
