@@ -11,6 +11,7 @@ Home
 	// supplies the only chrome fill on screen.
 	.tabs
 	{
+		position: absolute;
 		flex-shrink: 0;
 		z-index: 100;
 		align-items: center;
@@ -111,7 +112,7 @@ Home
 
 	.feed PackageList VirtualGrid
 	{
-		padding: 12px 24px 48px 24px;
+		padding: 64px 24px 48px 24px;
 		gap: 16px;
 	}
 
