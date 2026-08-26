@@ -24,6 +24,9 @@
         width: 100%;
         height: 100%;
 
+        gap: 16px;
+        padding: 32px;
+
         // Fill the cell - the grid stretches cells to use the whole row, and a
         // fixed-size card would leave ragged gaps between columns.
         PackageCard

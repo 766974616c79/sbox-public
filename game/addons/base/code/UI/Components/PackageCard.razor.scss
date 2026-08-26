@@ -26,8 +26,7 @@ PackageCard
 
 	.image
 	{
-		flex-grow: 1;
-		flex-shrink: 0;
+		width: 100%;
 		transition: all 150ms ease;
 		border: 1px solid rgba( white, 0.025 );
 		aspect-ratio: 16 / 9;
@@ -42,7 +41,41 @@ PackageCard
 		padding: 8px 2px; // Optically aligned
 	}
 
-	
+	// Icon+number pairs read as one unit, with clear air between the pairs.
+	.package-meta
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.package-stat
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 5px;
+
+		icon
+		{
+			font-size: 12px;
+		}
+
+		label
+		{
+			font-size: 12px;
+			font-weight: 500;
+			letter-spacing: 0;
+			text-transform: none;
+		}
+
+		.live-dot
+		{
+			width: 6px;
+			height: 6px;
+			border-radius: 3px;
+		}
+	}
 
 	&.list
 	{
