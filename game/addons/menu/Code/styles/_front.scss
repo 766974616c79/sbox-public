@@ -279,7 +279,6 @@ $front-chrome-gap: 16px;
 	// both re-measure on re-render, and a bad frame otherwise resizes the entry and
 	// shunts every entry below it down the rail.
 	height: 68px;
-	padding: 10px 4px;
 	// Square and full bleed - the active entry's fill runs edge to edge and butts
 	// straight into the marker bar, so neither may be rounded.
 	border-radius: 0;
@@ -287,6 +286,7 @@ $front-chrome-gap: 16px;
 	// would be a real child here, and it lays out in flow for the frame before its
 	// absolute positioning lands - which jumps the whole rail on navigation.
 	border-right: 3px solid transparent;
+	padding: 10px 1px 10px 4px;
 	transition: all 0.1s ease;
 
 	// Explicit box, not one measured from the glyph. Icon is set as a Razor parameter,
