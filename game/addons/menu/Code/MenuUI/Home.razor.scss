@@ -122,7 +122,7 @@ Home
 		width: 400px;
 		flex-direction: column;
 		gap: 16px;
-		padding: $front-chrome-gap 16px 20px 0;
+		padding: $front-chrome-gap $front-chrome-gap $front-chrome-gap 0;
 		overflow: hidden;
 
 		// News keeps its natural height - only the profile card flexes.
