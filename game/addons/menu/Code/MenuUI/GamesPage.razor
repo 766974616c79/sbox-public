@@ -34,7 +34,7 @@
                 {
                     foreach (var facet in Result.Facets)
                     {
-                        <div class="flex-column flex-gap-16">
+                        <div class="flex-column flex-gap-8">
                             <h2><WithIcon Icon="@facet.Entries.FirstOrDefault()?.Icon" Text="@facet.Title"></WithIcon></h2>
                             <PackageCategoryFilter Result=@Result Selected="@SelectedCategory" Facet="@facet"></PackageCategoryFilter>
                         </div>
