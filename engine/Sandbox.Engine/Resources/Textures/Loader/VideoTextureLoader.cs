@@ -99,13 +99,20 @@ internal static class VideoTextureLoader
 				continue;
 			}
 
-			if ( texture.LastUsed > 2 )
+			if ( texture.ParentObject is not VideoPlayer player )
 				continue;
 
-			if ( texture.ParentObject is VideoPlayer player )
+			// Nothing has drawn this for a few frames. Left running it decodes and throws away
+			// every frame forever - the clock keeps advancing past them, so they always read as
+			// late and the queue never fills to block the decoder. Pausing freezes the clock.
+			if ( texture.LastUsed > 2 )
 			{
-				player.Present();
+				player.Pause();
+				continue;
 			}
+
+			player.Resume();
+			player.Present();
 		}
 	}
 }
