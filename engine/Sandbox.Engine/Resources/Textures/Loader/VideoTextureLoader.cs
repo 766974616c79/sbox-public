@@ -73,12 +73,23 @@ internal static class VideoTextureLoader
 		return player.Texture;
 	}
 
-	static readonly Superluminal superluminal = new( "TickVideoPlayers", "#2c3541" );
+	// Presenting is false once nothing has drawn the texture for a few frames.
+	internal record struct ActivePlayer( string Url, VideoPlayer Player, bool Presenting );
+
+	internal static void GetActive( List<ActivePlayer> output )
+	{
+		foreach ( var entry in ActivePlayers )
+		{
+			if ( !entry.Value.TryGetTarget( out var texture ) )
+				continue;
+
+			if ( texture.ParentObject is VideoPlayer player )
+				output.Add( new ActivePlayer( entry.Key, player, texture.LastUsed <= 2 ) );
+		}
+	}
 
 	public static void TickVideoPlayers()
 	{
-		using var _ = superluminal.Start();
-
 		foreach ( var entry in ActivePlayers )
 		{
 			if ( !entry.Value.TryGetTarget( out var texture ) )
