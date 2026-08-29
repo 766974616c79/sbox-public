@@ -34,6 +34,7 @@
 					{
                     <PackageCard RightClicked=@(() => OnMenu?.Invoke(package))
                                  Clicked=@(() => OnSelected?.Invoke(package))
+                                 Rotation=@Rotation
                                  Package=@package></PackageCard>
 					}
                 }
@@ -64,6 +65,18 @@
     [Parameter] public List<Package> FoundPackages { get; set; }
 
     public Package.FindResult Result;
+
+    // Virtualized, so this only ever sees the cards currently on screen.
+    CardVideoRotation Rotation { get; } = new();
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        Rotation.Count = PackageCard.VideoThumbsPerGrid;
+        Rotation.Interval = PackageCard.VideoThumbsSeconds;
+        Rotation.Tick();
+    }
 
     protected override async Task OnParametersSetAsync()
     {
