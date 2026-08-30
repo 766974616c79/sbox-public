@@ -12,7 +12,6 @@ class Program
 	{
 		using ( new ToolAppSystem() )
 		{
-			var baseProject = Project.AddFromFileBuiltIn( "addons/base/.sbproj" );
 			Project.AddFromFileBuiltIn( "addons/tools/.sbproj" );
 			Project.AddFromFileBuiltIn( "editor/ActionGraph/.sbproj" );
 			Project.AddFromFileBuiltIn( "editor/ShaderGraph/.sbproj" );
@@ -23,7 +22,6 @@ class Program
 
 			SyncContext.RunBlocking( Project.CompileAsync() );
 
-			CopyCompilerOutput( baseProject );
 			CopyCompilerOutput( menuProject );
 		}
 
